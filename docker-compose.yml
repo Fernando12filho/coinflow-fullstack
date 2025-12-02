@@ -1,0 +1,31 @@
+version: '3.8'
+
+services:
+  web:
+    build: .
+    ports:
+      - "5000:5000"
+    environment:
+      - SECRET_KEY=${SECRET_KEY:-dev-secret-key-change-in-production}
+      - FLASK_ENV=production
+      - DATABASE_URL=sqlite:///instance/coinflow.sqlite
+    volumes:
+      - ./instance:/app/instance
+    restart: unless-stopped
+
+  # Optional: Add PostgreSQL for production
+  # Uncomment below to use PostgreSQL instead of SQLite
+  # db:
+  #   image: postgres:15-alpine
+  #   environment:
+  #     - POSTGRES_DB=coinflow
+  #     - POSTGRES_USER=coinflow
+  #     - POSTGRES_PASSWORD=${DB_PASSWORD:-changeme}
+  #   ports:
+  #     - "5432:5432"
+  #   volumes:
+  #     - postgres_data:/var/lib/postgresql/data
+  #   restart: unless-stopped
+
+# volumes:
+#   postgres_data:

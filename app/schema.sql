@@ -1,0 +1,42 @@
+DROP TABLE IF EXISTS user;
+DROP TABLE IF EXISTS bitcoin_holding;
+DROP TABLE IF EXISTS newsletter_subscription;
+DROP TABLE IF EXISTS transaction_history;
+
+CREATE TABLE user (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  username TEXT UNIQUE NOT NULL,
+  email TEXT UNIQUE NOT NULL,
+  password TEXT NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE bitcoin_holding (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL,
+  amount REAL NOT NULL,
+  purchase_price REAL NOT NULL,
+  purchase_date TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  notes TEXT,
+  FOREIGN KEY (user_id) REFERENCES user (id)
+);
+
+CREATE TABLE newsletter_subscription (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER,
+  email TEXT UNIQUE NOT NULL,
+  subscribed_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  is_active INTEGER NOT NULL DEFAULT 1,
+  FOREIGN KEY (user_id) REFERENCES user (id)
+);
+
+CREATE TABLE transaction_history (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL,
+  transaction_type TEXT NOT NULL,
+  amount REAL NOT NULL,
+  price REAL NOT NULL,
+  total_value REAL NOT NULL,
+  transaction_date TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES user (id)
+);
