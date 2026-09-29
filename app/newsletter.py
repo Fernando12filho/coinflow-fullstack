@@ -1,4 +1,4 @@
-from flask import Blueprint, jsonify, request, g
+from flask import Blueprint, current_app, jsonify, request, g
 from app.db import get_db
 from app.auth import login_required
 
@@ -8,8 +8,8 @@ bp = Blueprint('newsletter', __name__, url_prefix='/api/newsletter')
 @bp.route('/subscribe', methods=['POST'])
 def subscribe():
     """Subscribe to newsletter"""
-    data = request.get_json() if request.is_json else request.form
-    email = data.get('email')
+    data = request.get_json(silent=True) if request.is_json else request.form
+    email = ((data or {}).get('email') or '').strip().lower()
 
     if not email:
         return jsonify({'success': False, 'error': 'Email is required'}), 400
@@ -34,8 +34,8 @@ def subscribe():
             else:
                 # Reactivate subscription
                 db.execute(
-                    'UPDATE newsletter_subscription SET is_active = 1 WHERE email = ?',
-                    (email,)
+                    'UPDATE newsletter_subscription SET is_active = 1, user_id = COALESCE(user_id, ?) WHERE email = ?',
+                    (user_id, email)
                 )
         else:
             db.execute(
@@ -45,29 +45,26 @@ def subscribe():
         
         db.commit()
         return jsonify({'success': True, 'message': 'Successfully subscribed to newsletter'})
-    except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
+    except Exception:
+        db.rollback()
+        current_app.logger.exception('Newsletter subscription failed')
+        return jsonify({'success': False, 'error': 'Subscription failed, please try again'}), 500
 
 
 @bp.route('/unsubscribe', methods=['POST'])
+@login_required
 def unsubscribe():
-    """Unsubscribe from newsletter"""
-    data = request.get_json() if request.is_json else request.form
-    email = data.get('email')
-
-    if not email:
-        return jsonify({'success': False, 'error': 'Email is required'}), 400
-
+    """Unsubscribe the logged-in user from the newsletter"""
     db = get_db()
-    
+
     result = db.execute(
-        'UPDATE newsletter_subscription SET is_active = 0 WHERE email = ? AND is_active = 1',
-        (email,)
+        'UPDATE newsletter_subscription SET is_active = 0 WHERE user_id = ? AND is_active = 1',
+        (g.user['id'],)
     )
     db.commit()
 
     if result.rowcount == 0:
-        return jsonify({'success': False, 'error': 'Email not found or already unsubscribed'}), 404
+        return jsonify({'success': False, 'error': 'No active subscription found'}), 404
 
     return jsonify({'success': True, 'message': 'Successfully unsubscribed'})
 

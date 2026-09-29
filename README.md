@@ -13,10 +13,10 @@ A full-stack Flask application for tracking Bitcoin investments with real-time p
 ## Technologies Used
 
 ### Backend
-- Flask 3.0.0
-- SQLite Database
+- Flask 3.1
+- PostgreSQL in production, SQLite for local development
 - Werkzeug (Password Hashing)
-- CoinGecko API (Bitcoin Prices)
+- CoinGecko API, with Coinbase as a fallback (Bitcoin Prices)
 
 ### Frontend
 - HTML5
@@ -42,17 +42,14 @@ A full-stack Flask application for tracking Bitcoin investments with real-time p
    pip install -r requirements.txt
    ```
 
-4. **Initialize the database**
+4. **Set environment variables (optional)**
    ```bash
-   flask --app app init-db
+   export SECRET_KEY=your-secret-key-here
+   # Use Postgres instead of the local SQLite file:
+   # export DATABASE_URL=postgresql://user:password@localhost:5432/coinflow
    ```
 
-5. **Set environment variables (optional)**
-   ```bash
-   export FLASK_APP=app
-   export FLASK_ENV=development
-   export SECRET_KEY=your-secret-key-here
-   ```
+   Database tables are created automatically on startup.
 
 ## Running the Application
 
@@ -75,7 +72,8 @@ coinflow-fullstack/
 │   ├── newsletter.py        # Newsletter blueprint
 │   ├── dashboard.py         # Dashboard blueprint
 │   ├── db.py                # Database utilities
-│   ├── schema.sql           # Database schema
+│   ├── schema.sql           # Database schema (SQLite)
+│   ├── schema_postgres.sql  # Database schema (PostgreSQL)
 │   ├── static/
 │   │   ├── css/
 │   │   │   └── style.css    # Main stylesheet
@@ -93,8 +91,10 @@ coinflow-fullstack/
 │       │   └── register.html # Registration page
 │       └── dashboard/
 │           └── index.html   # Dashboard page
+├── tests/                   # Pytest suite
+├── render.yaml              # Render blueprint (web service + Postgres)
 ├── requirements.txt         # Python dependencies
-└── README.md               # This file
+└── README.md                # This file
 ```
 
 ## Usage
@@ -118,7 +118,7 @@ coinflow-fullstack/
 ### Newsletter
 1. Enter your email on the home page or dashboard
 2. Subscribe to receive Bitcoin market updates
-3. Unsubscribe anytime from the dashboard
+3. Logged-in users can unsubscribe from the dashboard
 
 ## API Endpoints
 
@@ -138,8 +138,10 @@ coinflow-fullstack/
 
 ### Newsletter API
 - `POST /api/newsletter/subscribe` - Subscribe to newsletter
-- `POST /api/newsletter/unsubscribe` - Unsubscribe from newsletter
+- `POST /api/newsletter/unsubscribe` - Unsubscribe the logged-in user (requires auth)
 - `GET /api/newsletter/status` - Get subscription status (requires auth)
+
+API routes that require auth return `401` JSON when not logged in.
 
 ## Database Schema
 
@@ -177,10 +179,10 @@ coinflow-fullstack/
 ## Security Features
 
 - Password hashing using Werkzeug
-- Session-based authentication
-- CSRF protection (Flask built-in)
+- Session-based authentication with `HttpOnly`, `SameSite=Lax` cookies (`Secure` in production)
 - SQL injection prevention (parameterized queries)
-- XSS protection (template auto-escaping)
+- XSS protection (template auto-escaping, escaped user notes in the dashboard)
+- The app refuses to start in production without a `SECRET_KEY`
 
 ## Development
 
@@ -190,19 +192,22 @@ export FLASK_ENV=development
 flask --app app run --debug
 ```
 
+### Running Tests
+```bash
+pip install pytest
+python -m pytest
+# Against Postgres instead of SQLite:
+TEST_DATABASE_URL=postgresql://user:password@localhost:5432/coinflow_test python -m pytest
+```
+
 ### Resetting the Database
 ```bash
-flask --app app init-db
+flask --app app init-db   # deletes all data
 ```
 
 ## Production Deployment
 
-1. Set a strong `SECRET_KEY` environment variable
-2. Use a production WSGI server (e.g., Gunicorn)
-3. Configure proper database (PostgreSQL recommended)
-4. Enable HTTPS
-5. Set up rate limiting
-6. Configure logging
+See [RENDER_DEPLOY.md](RENDER_DEPLOY.md). In short: create a Render Blueprint from this repo and it sets up the web service, a Postgres database and a `SECRET_KEY` for you.
 
 ## Contributing
 

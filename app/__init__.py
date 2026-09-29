@@ -1,14 +1,20 @@
 import os
 from flask import Flask
-from flask_cors import CORS
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 
 def create_app(test_config=None):
     """Create and configure the Flask application"""
     app = Flask(__name__, instance_relative_config=True)
+    is_production = os.environ.get('FLASK_ENV') == 'production'
+
     app.config.from_mapping(
         SECRET_KEY=os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production'),
         DATABASE=os.path.join(app.instance_path, 'coinflow.sqlite'),
+        DATABASE_URL=os.environ.get('DATABASE_URL'),
+        SESSION_COOKIE_HTTPONLY=True,
+        SESSION_COOKIE_SAMESITE='Lax',
+        SESSION_COOKIE_SECURE=is_production,
     )
 
     if test_config is None:
@@ -18,14 +24,17 @@ def create_app(test_config=None):
         # Load the test config if passed in
         app.config.from_mapping(test_config)
 
+    if is_production and not os.environ.get('SECRET_KEY'):
+        raise RuntimeError('SECRET_KEY must be set when FLASK_ENV=production')
+
     # Ensure the instance folder exists
     try:
         os.makedirs(app.instance_path)
     except OSError:
         pass
 
-    # Enable CORS
-    CORS(app)
+    # Trust the X-Forwarded-* headers set by the hosting platform's proxy
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
 
     # Initialize database
     from . import db
@@ -44,9 +53,8 @@ def create_app(test_config=None):
     from . import dashboard
     app.register_blueprint(dashboard.bp)
 
-    # Home route
-    @app.route('/')
-    def index():
-        return dashboard.index()
+    @app.route('/healthz')
+    def healthz():
+        return {'status': 'ok'}
 
     return app

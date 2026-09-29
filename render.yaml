@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: coinflow
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn "app:create_app()"
+    healthCheckPath: /healthz
+    envVars:
+      - key: FLASK_ENV
+        value: production
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DATABASE_URL
+        fromDatabase:
+          name: coinflow-db
+          property: connectionString
+
+databases:
+  - name: coinflow-db
+    plan: free
+    databaseName: coinflow
+    user: coinflow

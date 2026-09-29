@@ -16,7 +16,5 @@ ENV/
 *.log
 .git/
 .gitignore
-README.md
-DEPLOYMENT_GUIDE.md
-BUILD_SUMMARY.md
-QUICK_START.md
+*.md
+tests/

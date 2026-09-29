@@ -48,8 +48,8 @@ async function fetchHoldings() {
             document.getElementById('total-invested').textContent = formatCurrency(summary.total_invested);
             document.getElementById('current-value').textContent = formatCurrency(summary.current_value);
             document.getElementById('profit-loss').textContent = formatCurrency(summary.total_profit_loss);
-            document.getElementById('profit-loss-percent').textContent = 
-                `(${summary.total_profit_loss_percent.toFixed(2)}%)`;
+            document.getElementById('profit-loss-percent').textContent =
+                formatPercent(summary.total_profit_loss_percent);
             
             // Update profit/loss card color
             const profitLossCard = document.getElementById('profit-loss-card');
@@ -88,7 +88,10 @@ function renderHoldingsTable(holdings) {
     
     holdings.forEach(holding => {
         const row = document.createElement('tr');
-        const profitLossClass = holding.profit_loss >= 0 ? 'profit' : 'loss';
+        let profitLossClass = '';
+        if (holding.profit_loss !== null) {
+            profitLossClass = holding.profit_loss >= 0 ? 'profit' : 'loss';
+        }
         
         row.innerHTML = `
             <td>${formatDate(holding.purchase_date)}</td>
@@ -98,9 +101,9 @@ function renderHoldingsTable(holdings) {
             <td>${formatCurrency(holding.current_value)}</td>
             <td class="${profitLossClass}">
                 ${formatCurrency(holding.profit_loss)}<br>
-                <small>(${holding.profit_loss_percent.toFixed(2)}%)</small>
+                <small>${formatPercent(holding.profit_loss_percent)}</small>
             </td>
-            <td>${holding.notes || '-'}</td>
+            <td>${holding.notes ? escapeHtml(holding.notes) : '-'}</td>
             <td>
                 <button class="btn-delete" onclick="deleteHolding(${holding.id})">Delete</button>
             </td>
@@ -213,11 +216,8 @@ document.getElementById('unsubscribe-btn')?.addEventListener('click', async func
         return;
     }
     
-    const email = document.getElementById('subscribed-email').textContent;
-    
     const result = await apiRequest('/api/newsletter/unsubscribe', {
-        method: 'POST',
-        body: JSON.stringify({ email })
+        method: 'POST'
     });
     
     if (result.ok && result.data.success) {

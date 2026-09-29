@@ -2,6 +2,9 @@
 
 // Format currency
 function formatCurrency(value) {
+    if (value === null || value === undefined) {
+        return '—';
+    }
     return new Intl.NumberFormat('en-US', {
         style: 'currency',
         currency: 'USD',
@@ -25,6 +28,18 @@ function formatDate(dateString) {
         hour: '2-digit',
         minute: '2-digit'
     });
+}
+
+// Format a percentage, or nothing when unknown
+function formatPercent(value) {
+    return value === null || value === undefined ? '' : `(${value.toFixed(2)}%)`;
+}
+
+// Escape text before inserting it into HTML
+function escapeHtml(value) {
+    const div = document.createElement('div');
+    div.textContent = value;
+    return div.innerHTML;
 }
 
 // Show message

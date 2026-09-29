@@ -12,8 +12,8 @@ bp = Blueprint('auth', __name__, url_prefix='/auth')
 def register():
     """Register a new user"""
     if request.method == 'POST':
-        username = request.form.get('username')
-        email = request.form.get('email')
+        username = (request.form.get('username') or '').strip()
+        email = (request.form.get('email') or '').strip().lower()
         password = request.form.get('password')
         db = get_db()
         error = None
@@ -30,14 +30,15 @@ def register():
         if error is None:
             try:
                 db.execute(
-                    "INSERT INTO user (username, email, password) VALUES (?, ?, ?)",
+                    "INSERT INTO users (username, email, password) VALUES (?, ?, ?)",
                     (username, email, generate_password_hash(password)),
                 )
                 db.commit()
                 flash('Registration successful! Please log in.', 'success')
                 return redirect(url_for("auth.login"))
             except db.IntegrityError:
-                error = f"Username or email already registered."
+                db.rollback()
+                error = "Username or email already registered."
         
         flash(error, 'error')
 
@@ -54,7 +55,7 @@ def login():
         error = None
         
         user = db.execute(
-            'SELECT * FROM user WHERE username = ?', (username,)
+            'SELECT * FROM users WHERE username = ?', (username,)
         ).fetchone()
 
         if user is None:
@@ -82,7 +83,7 @@ def load_logged_in_user():
         g.user = None
     else:
         g.user = get_db().execute(
-            'SELECT * FROM user WHERE id = ?', (user_id,)
+            'SELECT * FROM users WHERE id = ?', (user_id,)
         ).fetchone()
 
 
@@ -99,6 +100,8 @@ def login_required(view):
     @functools.wraps(view)
     def wrapped_view(**kwargs):
         if g.user is None:
+            if request.path.startswith('/api/'):
+                return jsonify({'success': False, 'error': 'Authentication required'}), 401
             flash('Please log in to access this page.', 'warning')
             return redirect(url_for('auth.login'))
         return view(**kwargs)
