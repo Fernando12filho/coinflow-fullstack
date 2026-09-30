@@ -1,4 +1,5 @@
 import time
+from datetime import date, datetime, timedelta, timezone
 import requests
 from flask import Blueprint, current_app, jsonify, request, g
 from app.auth import login_required
@@ -134,6 +135,7 @@ def add_holding():
     amount = data.get('amount')
     purchase_price = data.get('purchase_price')
     notes = data.get('notes', '')
+    purchase_date = data.get('purchase_date')
 
     if not amount or not purchase_price:
         return jsonify({'success': False, 'error': 'Amount and purchase price are required'}), 400
@@ -147,10 +149,23 @@ def add_holding():
     except (TypeError, ValueError):
         return jsonify({'success': False, 'error': 'Invalid number format'}), 400
 
+    if purchase_date:
+        try:
+            parsed_date = date.fromisoformat(purchase_date)
+        except (TypeError, ValueError):
+            return jsonify({'success': False, 'error': 'Invalid purchase date'}), 400
+        # Allow one day of slack for users in timezones ahead of the server
+        if parsed_date > date.today() + timedelta(days=1):
+            return jsonify({'success': False, 'error': 'Purchase date cannot be in the future'}), 400
+        purchase_date = datetime.combine(parsed_date, datetime.min.time())
+    else:
+        purchase_date = datetime.now(timezone.utc).replace(tzinfo=None, microsecond=0)
+
     db = get_db()
     holding_id = db.execute(
-        'INSERT INTO bitcoin_holding (user_id, amount, purchase_price, notes) VALUES (?, ?, ?, ?) RETURNING id',
-        (g.user['id'], amount, purchase_price, notes)
+        'INSERT INTO bitcoin_holding (user_id, amount, purchase_price, purchase_date, notes) '
+        'VALUES (?, ?, ?, ?, ?) RETURNING id',
+        (g.user['id'], amount, purchase_price, purchase_date.isoformat(' '), notes)
     ).fetchone()['id']
     
     # Record transaction

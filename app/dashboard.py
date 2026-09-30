@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, g
+from flask import Blueprint, redirect, render_template, g, url_for
 from app.auth import login_required
 
 bp = Blueprint('dashboard', __name__)
@@ -6,10 +6,10 @@ bp = Blueprint('dashboard', __name__)
 
 @bp.route('/')
 def index():
-    """Home page / Dashboard"""
+    """Dashboard for logged-in users, login page for everyone else"""
     if g.user:
         return render_template('dashboard/index.html')
-    return render_template('home/index.html')
+    return redirect(url_for('auth.login'))
 
 
 @bp.route('/dashboard')
@@ -17,3 +17,10 @@ def index():
 def dashboard():
     """User dashboard"""
     return render_template('dashboard/index.html')
+
+
+@bp.route('/newsletter')
+@login_required
+def newsletter():
+    """Newsletter subscription page"""
+    return render_template('dashboard/newsletter.html')

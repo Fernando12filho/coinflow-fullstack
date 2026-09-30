@@ -18,73 +18,105 @@ function formatBTC(value) {
     return parseFloat(value).toFixed(8);
 }
 
-// Format date
-function formatDate(dateString) {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-    });
-}
-
 // Format a percentage, or nothing when unknown
 function formatPercent(value) {
     return value === null || value === undefined ? '' : `(${value.toFixed(2)}%)`;
 }
 
-// Escape text before inserting it into HTML
-function escapeHtml(value) {
-    const div = document.createElement('div');
-    div.textContent = value;
-    return div.innerHTML;
-}
-
-// Show message
-function showMessage(elementId, message, type = 'success') {
-    const messageEl = document.getElementById(elementId);
-    if (messageEl) {
-        messageEl.textContent = message;
-        messageEl.className = `newsletter-message show ${type}`;
-        messageEl.style.display = 'block';
-        
-        setTimeout(() => {
-            messageEl.style.display = 'none';
-        }, 5000);
-    }
+// Format a purchase date. Dates are stored in UTC, so display them in UTC
+// to avoid showing the previous day in timezones behind UTC.
+function formatDate(dateString) {
+    return new Date(dateString).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        timeZone: 'UTC'
+    });
 }
 
 // Make API request
 async function apiRequest(url, options = {}) {
     try {
         const response = await fetch(url, {
+            ...options,
             headers: {
                 'Content-Type': 'application/json',
                 ...options.headers
-            },
-            ...options
+            }
         });
-        
+
+        if (response.status === 401) {
+            window.location.href = '/auth/login';
+            return { ok: false, data: {} };
+        }
+
         const data = await response.json();
         return { ok: response.ok, data };
     } catch (error) {
         console.error('API request failed:', error);
-        return { ok: false, error: error.message };
+        return { ok: false, data: {}, error: error.message };
     }
 }
 
-// Auto-hide alerts after 5 seconds
+// ---------- Popups (SweetAlert2, with a plain fallback if it failed to load) ----------
+
+function showLoading(title) {
+    if (!window.Swal) return;
+    Swal.fire({
+        title,
+        showConfirmButton: false,
+        allowOutsideClick: false,
+        didOpen: () => Swal.showLoading()
+    });
+}
+
+function showSuccess(title) {
+    if (!window.Swal) return;
+    Swal.fire({ icon: 'success', title, timer: 1500, showConfirmButton: false });
+}
+
+function showError(title, text) {
+    if (!window.Swal) {
+        alert(text ? `${title}\n${text}` : title);
+        return;
+    }
+    Swal.fire({ icon: 'error', title, text, confirmButtonColor: '#0088cc' });
+}
+
+async function confirmAction(title, confirmButtonText) {
+    if (!window.Swal) {
+        return confirm(title);
+    }
+    const result = await Swal.fire({
+        icon: 'warning',
+        title,
+        showCancelButton: true,
+        confirmButtonText,
+        confirmButtonColor: '#c04848'
+    });
+    return result.isConfirmed;
+}
+
+// Show Flask flash messages as popups
+function showFlashMessages() {
+    const el = document.getElementById('flash-data');
+    const messages = el ? JSON.parse(el.textContent) : [];
+    if (messages.length === 0) return;
+
+    const [category, message] = messages[messages.length - 1];
+    if (category === 'error') {
+        showError(message);
+    } else if (window.Swal) {
+        const icon = ['success', 'warning', 'info'].includes(category) ? category : 'info';
+        Swal.fire({ icon, title: message, timer: 1800, showConfirmButton: false });
+    }
+}
+
 document.addEventListener('DOMContentLoaded', function() {
-    const alerts = document.querySelectorAll('.alert');
-    alerts.forEach(alert => {
-        setTimeout(() => {
-            alert.style.opacity = '0';
-            alert.style.transition = 'opacity 0.5s';
-            setTimeout(() => {
-                alert.style.display = 'none';
-            }, 500);
-        }, 5000);
+    showFlashMessages();
+
+    // Loading popup while login/register forms submit
+    document.querySelectorAll('form[data-loading]').forEach(form => {
+        form.addEventListener('submit', () => showLoading(form.dataset.loading));
     });
 });

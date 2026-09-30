@@ -1,0 +1,19 @@
+<header class="app-header">
+    <a href="{{ url_for('dashboard.index') }}" class="logo">
+        <img src="{{ url_for('static', filename='img/logo.svg') }}" alt="">
+        <span>CoinFlow</span>
+    </a>
+    <nav class="nav">
+        <a href="{{ url_for('dashboard.index') }}" class="{{ 'active' if request.endpoint in ('dashboard.index', 'dashboard.dashboard') }}">Portfolio</a>
+        <a href="{{ url_for('dashboard.newsletter') }}" class="{{ 'active' if request.endpoint == 'dashboard.newsletter' }}">Newsletter</a>
+        <span class="disabled-link" title="Coming soon">Invoice MK</span>
+        <span class="disabled-link" title="Coming soon">Forum</span>
+    </nav>
+    <div class="username-logout">
+        <div class="username">
+            <img src="{{ url_for('static', filename='img/user.svg') }}" alt="">
+            <span>{{ g.user['username'] }}</span>
+        </div>
+        <a href="{{ url_for('auth.logout') }}" class="logout-button">Log Out</a>
+    </div>
+</header>

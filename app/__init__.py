@@ -1,4 +1,5 @@
 import os
+from datetime import date
 from flask import Flask
 from werkzeug.middleware.proxy_fix import ProxyFix
 
@@ -52,6 +53,10 @@ def create_app(test_config=None):
 
     from . import dashboard
     app.register_blueprint(dashboard.bp)
+
+    @app.context_processor
+    def inject_current_year():
+        return {'current_year': date.today().year}
 
     @app.route('/healthz')
     def healthz():

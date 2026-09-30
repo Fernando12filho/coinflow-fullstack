@@ -1,243 +1,228 @@
 // Dashboard JavaScript
 
-let currentPrice = 0;
+const EYE_OPEN = '/static/img/open-eye.svg';
+const EYE_CLOSED = '/static/img/closed-eye.svg';
 
-// Fetch current Bitcoin price
-async function fetchCurrentPrice() {
-    const loadingEl = document.getElementById('current-price-loading');
-    const displayEl = document.getElementById('current-price-display');
-    const priceEl = document.getElementById('current-btc-price');
-    const timestampEl = document.getElementById('price-timestamp');
+// Hero values, shown only when their eye toggle is open
+const heroVisible = { 'total-btc': false, 'total-invested': false };
+let latestSummary = null;
 
-    try {
-        const result = await apiRequest('/api/bitcoin/price');
-        
-        if (result.ok && result.data.success) {
-            currentPrice = result.data.price;
-            priceEl.textContent = currentPrice.toLocaleString('en-US', {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2
-            });
-            timestampEl.textContent = new Date().toLocaleTimeString();
-            loadingEl.style.display = 'none';
-            displayEl.style.display = 'block';
-        } else {
-            loadingEl.textContent = 'Unable to load price';
-        }
-    } catch (error) {
-        console.error('Error fetching price:', error);
-        loadingEl.textContent = 'Error loading price';
+const MASK = '********';
+
+function renderHero() {
+    const summary = latestSummary;
+    const showBtc = heroVisible['total-btc'];
+    const showTotal = heroVisible['total-invested'];
+
+    document.querySelector('[data-value-id="total-btc"]').textContent =
+        showBtc && summary ? formatBTC(summary.total_amount) : MASK;
+    document.querySelector('[data-value-id="total-invested"]').textContent =
+        showTotal && summary ? formatCurrency(summary.total_invested) : MASK;
+
+    // Profit/loss reveals the portfolio size, so it follows the "Total" toggle
+    const profitLossEl = document.getElementById('total-profit-loss');
+    profitLossEl.classList.remove('profit', 'loss');
+    if (!summary || summary.total_profit_loss === null) {
+        profitLossEl.textContent = 'Profit / Loss: --';
+    } else if (!showTotal) {
+        profitLossEl.textContent = `Profit / Loss: ${MASK}`;
+    } else {
+        profitLossEl.textContent = `Profit / Loss: ${formatCurrency(summary.total_profit_loss)} ` +
+            formatPercent(summary.total_profit_loss_percent);
+        if (summary.total_profit_loss > 0) profitLossEl.classList.add('profit');
+        if (summary.total_profit_loss < 0) profitLossEl.classList.add('loss');
     }
+
+    // The asset card's value follows the "BTC" toggle
+    let worth = '--';
+    if (summary && summary.current_value !== null) {
+        worth = showBtc ? `Worth ${formatCurrency(summary.current_value)}` : `Worth ${MASK}`;
+    }
+    document.getElementById('asset-value').textContent = worth;
+
+    Object.keys(heroVisible).forEach(id => {
+        const toggle = document.querySelector(`[data-toggle="${id}"]`);
+        toggle.querySelector('img').src = heroVisible[id] ? EYE_OPEN : EYE_CLOSED;
+        toggle.setAttribute('aria-pressed', heroVisible[id]);
+    });
 }
 
-// Fetch user's holdings
+// ---------- Portfolio ----------
+
 async function fetchHoldings() {
-    const loadingEl = document.getElementById('portfolio-loading');
-    const displayEl = document.getElementById('portfolio-display');
-    const emptyEl = document.getElementById('holdings-empty');
-    const tableContainer = document.getElementById('holdings-table-container');
-
-    try {
-        const result = await apiRequest('/api/bitcoin/holdings');
-        
-        if (result.ok && result.data.success) {
-            const { holdings, summary } = result.data;
-            
-            // Update summary
-            document.getElementById('total-btc').textContent = formatBTC(summary.total_amount);
-            document.getElementById('total-invested').textContent = formatCurrency(summary.total_invested);
-            document.getElementById('current-value').textContent = formatCurrency(summary.current_value);
-            document.getElementById('profit-loss').textContent = formatCurrency(summary.total_profit_loss);
-            document.getElementById('profit-loss-percent').textContent =
-                formatPercent(summary.total_profit_loss_percent);
-            
-            // Update profit/loss card color
-            const profitLossCard = document.getElementById('profit-loss-card');
-            profitLossCard.classList.remove('positive', 'negative');
-            if (summary.total_profit_loss > 0) {
-                profitLossCard.classList.add('positive');
-            } else if (summary.total_profit_loss < 0) {
-                profitLossCard.classList.add('negative');
-            }
-            
-            loadingEl.style.display = 'none';
-            displayEl.style.display = 'block';
-            
-            // Update holdings table
-            if (holdings.length === 0) {
-                emptyEl.style.display = 'block';
-                tableContainer.style.display = 'none';
-            } else {
-                emptyEl.style.display = 'none';
-                tableContainer.style.display = 'block';
-                renderHoldingsTable(holdings);
-            }
-        } else {
-            loadingEl.textContent = 'Error loading portfolio';
-        }
-    } catch (error) {
-        console.error('Error fetching holdings:', error);
-        loadingEl.textContent = 'Error loading portfolio';
+    const result = await apiRequest('/api/bitcoin/holdings');
+    if (!result.ok || !result.data.success) {
+        showError('Could not load your portfolio', 'Please refresh the page.');
+        return;
     }
+
+    const { holdings, summary } = result.data;
+
+    latestSummary = summary;
+    document.getElementById('btc-price').textContent =
+        `BTC price: ${formatCurrency(summary.current_price)}`;
+
+    renderAssets(summary);
+    renderHero();
+    renderTransactions(holdings);
 }
 
-// Render holdings table
-function renderHoldingsTable(holdings) {
-    const tbody = document.getElementById('holdings-tbody');
-    tbody.innerHTML = '';
-    
+function renderAssets(summary) {
+    const card = document.getElementById('bitcoin-asset-card');
+    card.classList.toggle('hidden', summary.total_amount <= 0);
+    document.getElementById('asset-price').textContent = formatCurrency(summary.current_price);
+}
+
+function renderTransactions(holdings) {
+    const tbody = document.getElementById('transactions-body');
+    tbody.replaceChildren();
+    document.getElementById('transactions-empty').classList.toggle('hidden', holdings.length > 0);
+
     holdings.forEach(holding => {
         const row = document.createElement('tr');
-        let profitLossClass = '';
-        if (holding.profit_loss !== null) {
-            profitLossClass = holding.profit_loss >= 0 ? 'profit' : 'loss';
-        }
-        
-        row.innerHTML = `
-            <td>${formatDate(holding.purchase_date)}</td>
-            <td>${formatBTC(holding.amount)}</td>
-            <td>${formatCurrency(holding.purchase_price)}</td>
-            <td>${formatCurrency(holding.invested)}</td>
-            <td>${formatCurrency(holding.current_value)}</td>
-            <td class="${profitLossClass}">
-                ${formatCurrency(holding.profit_loss)}<br>
-                <small>${formatPercent(holding.profit_loss_percent)}</small>
-            </td>
-            <td>${holding.notes ? escapeHtml(holding.notes) : '-'}</td>
-            <td>
-                <button class="btn-delete" onclick="deleteHolding(${holding.id})">Delete</button>
-            </td>
-        `;
-        
+        const cells = [
+            'Bitcoin',
+            holding.id,
+            formatDate(holding.purchase_date),
+            formatBTC(holding.amount),
+            formatCurrency(holding.invested),
+            `${formatCurrency(holding.profit_loss)} ${formatPercent(holding.profit_loss_percent)}`
+        ];
+        cells.forEach(text => {
+            const td = document.createElement('td');
+            td.textContent = text;
+            row.appendChild(td);
+        });
+
+        const profitLossCell = row.children[5];
+        if (holding.profit_loss > 0) profitLossCell.classList.add('profit');
+        if (holding.profit_loss < 0) profitLossCell.classList.add('loss');
+
+        const actionCell = document.createElement('td');
+        const deleteButton = document.createElement('button');
+        deleteButton.type = 'button';
+        deleteButton.className = 'delete-button';
+        deleteButton.textContent = 'Delete';
+        deleteButton.addEventListener('click', () => deleteHolding(holding.id));
+        actionCell.appendChild(deleteButton);
+        row.appendChild(actionCell);
+
         tbody.appendChild(row);
     });
 }
 
-// Add new holding
-document.getElementById('add-holding-form')?.addEventListener('submit', async function(e) {
+async function deleteHolding(holdingId) {
+    if (!await confirmAction('Delete this transaction?', 'Delete')) {
+        return;
+    }
+
+    showLoading('Deleting transaction...');
+    const result = await apiRequest(`/api/bitcoin/holdings/${holdingId}`, { method: 'DELETE' });
+
+    if (result.ok && result.data.success) {
+        showSuccess('Transaction has been deleted');
+        fetchHoldings();
+    } else {
+        showError('Error deleting transaction', result.data.error);
+    }
+}
+
+// ---------- Tabs ----------
+
+function showTab(name) {
+    document.querySelectorAll('[data-tab]').forEach(button => {
+        const active = button.dataset.tab === name;
+        button.classList.toggle('active', active);
+        button.setAttribute('aria-selected', active);
+    });
+    document.getElementById('tab-assets').classList.toggle('hidden', name !== 'assets');
+    document.getElementById('tab-transactions').classList.toggle('hidden', name !== 'transactions');
+}
+
+// ---------- Add investment popup ----------
+
+const popup = document.getElementById('investment-popup');
+const investmentForm = document.getElementById('investment-form');
+
+function todayLocal() {
+    const now = new Date();
+    return new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+}
+
+function openPopup() {
+    investmentForm.reset();
+    investmentForm.investment_date.value = todayLocal();
+    investmentForm.investment_date.max = todayLocal();
+    updatePriceHint();
+    popup.classList.remove('hidden');
+    investmentForm.investment_amount.focus();
+}
+
+function closePopup() {
+    popup.classList.add('hidden');
+}
+
+function updatePriceHint() {
+    const invested = parseFloat(investmentForm.investment_amount.value);
+    const btc = parseFloat(investmentForm.crypto_amount.value);
+    document.getElementById('price-per-btc').textContent =
+        invested > 0 && btc > 0 ? `Price paid per BTC: ${formatCurrency(invested / btc)}` : '';
+}
+
+investmentForm.addEventListener('input', updatePriceHint);
+
+investmentForm.addEventListener('submit', async function(e) {
     e.preventDefault();
-    
-    const amount = document.getElementById('amount').value;
-    const purchasePrice = document.getElementById('purchase-price').value;
-    const notes = document.getElementById('notes').value;
-    
+
+    const invested = parseFloat(investmentForm.investment_amount.value);
+    const btc = parseFloat(investmentForm.crypto_amount.value);
+
+    showLoading('Saving transaction...');
     const result = await apiRequest('/api/bitcoin/holdings', {
         method: 'POST',
         body: JSON.stringify({
-            amount: parseFloat(amount),
-            purchase_price: parseFloat(purchasePrice),
-            notes
+            amount: btc,
+            purchase_price: invested / btc,
+            purchase_date: investmentForm.investment_date.value
         })
     });
-    
+
     if (result.ok && result.data.success) {
-        showMessage('add-holding-message', 'Holding added successfully!', 'success');
-        
-        // Clear form
-        document.getElementById('amount').value = '';
-        document.getElementById('purchase-price').value = '';
-        document.getElementById('notes').value = '';
-        
-        // Refresh holdings
+        closePopup();
+        showSuccess('Transaction has been saved');
         fetchHoldings();
     } else {
-        const errorMsg = result.data?.error || 'Failed to add holding';
-        showMessage('add-holding-message', errorMsg, 'error');
+        showError('Error adding transaction', result.data.error || 'An error occurred.');
     }
 });
 
-// Delete holding
-async function deleteHolding(holdingId) {
-    if (!confirm('Are you sure you want to delete this holding?')) {
-        return;
-    }
-    
-    const result = await apiRequest(`/api/bitcoin/holdings/${holdingId}`, {
-        method: 'DELETE'
-    });
-    
-    if (result.ok && result.data.success) {
-        fetchHoldings();
-    } else {
-        alert('Failed to delete holding');
-    }
-}
+// ---------- Init ----------
 
-// Check newsletter subscription status
-async function checkNewsletterStatus() {
-    const loadingEl = document.getElementById('newsletter-status-loading');
-    const subscribedEl = document.getElementById('newsletter-subscribed');
-    const notSubscribedEl = document.getElementById('newsletter-not-subscribed');
-
-    try {
-        const result = await apiRequest('/api/newsletter/status');
-        
-        if (result.ok && result.data.success) {
-            loadingEl.style.display = 'none';
-            
-            if (result.data.subscribed) {
-                document.getElementById('subscribed-email').textContent = result.data.email;
-                subscribedEl.style.display = 'block';
-                notSubscribedEl.style.display = 'none';
-            } else {
-                subscribedEl.style.display = 'none';
-                notSubscribedEl.style.display = 'block';
-            }
-        }
-    } catch (error) {
-        console.error('Error checking newsletter status:', error);
-        loadingEl.textContent = 'Error loading status';
-    }
-}
-
-// Handle newsletter subscription from dashboard
-document.getElementById('dashboard-newsletter-form')?.addEventListener('submit', async function(e) {
-    e.preventDefault();
-    
-    const email = document.getElementById('dashboard-newsletter-email').value;
-    
-    const result = await apiRequest('/api/newsletter/subscribe', {
-        method: 'POST',
-        body: JSON.stringify({ email })
-    });
-    
-    if (result.ok && result.data.success) {
-        showMessage('newsletter-dashboard-message', result.data.message, 'success');
-        checkNewsletterStatus();
-    } else {
-        const errorMsg = result.data?.error || 'Subscription failed';
-        showMessage('newsletter-dashboard-message', errorMsg, 'error');
-    }
-});
-
-// Handle unsubscribe
-document.getElementById('unsubscribe-btn')?.addEventListener('click', async function() {
-    if (!confirm('Are you sure you want to unsubscribe from the newsletter?')) {
-        return;
-    }
-    
-    const result = await apiRequest('/api/newsletter/unsubscribe', {
-        method: 'POST'
-    });
-    
-    if (result.ok && result.data.success) {
-        showMessage('newsletter-dashboard-message', result.data.message, 'success');
-        checkNewsletterStatus();
-    } else {
-        const errorMsg = result.data?.error || 'Unsubscribe failed';
-        showMessage('newsletter-dashboard-message', errorMsg, 'error');
-    }
-});
-
-// Initialize dashboard
 document.addEventListener('DOMContentLoaded', function() {
-    fetchCurrentPrice();
+    document.querySelectorAll('[data-toggle]').forEach(button => {
+        button.addEventListener('click', () => {
+            const id = button.dataset.toggle;
+            heroVisible[id] = !heroVisible[id];
+            renderHero();
+        });
+    });
+
+    document.querySelectorAll('[data-tab]').forEach(button => {
+        button.addEventListener('click', () => showTab(button.dataset.tab));
+    });
+
+    document.querySelectorAll('[data-open-popup]').forEach(button => {
+        button.addEventListener('click', openPopup);
+    });
+    document.querySelector('[data-close-popup]').addEventListener('click', closePopup);
+    popup.addEventListener('click', e => {
+        if (e.target === popup) closePopup();
+    });
+    document.addEventListener('keydown', e => {
+        if (e.key === 'Escape') closePopup();
+    });
+
     fetchHoldings();
-    checkNewsletterStatus();
-    
-    // Refresh data every 60 seconds
-    setInterval(() => {
-        fetchCurrentPrice();
-        fetchHoldings();
-    }, 60000);
+    // Refresh prices every 60 seconds
+    setInterval(fetchHoldings, 60000);
 });

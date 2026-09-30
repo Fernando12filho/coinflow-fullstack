@@ -75,22 +75,17 @@ coinflow-fullstack/
 │   ├── schema.sql           # Database schema (SQLite)
 │   ├── schema_postgres.sql  # Database schema (PostgreSQL)
 │   ├── static/
-│   │   ├── css/
-│   │   │   └── style.css    # Main stylesheet
+│   │   ├── css/style.css    # Styles (design from coinflow-frontEnd)
+│   │   ├── img/             # Logo and icons
 │   │   └── js/
-│   │       ├── main.js      # Common JavaScript
-│   │       ├── home.js      # Home page scripts
-│   │       ├── register.js  # Registration scripts
-│   │       └── dashboard.js # Dashboard scripts
+│   │       ├── main.js      # Shared helpers and popups (SweetAlert2)
+│   │       ├── dashboard.js # Portfolio: hero, assets, transactions, add popup
+│   │       └── newsletter.js
 │   └── templates/
-│       ├── base.html        # Base template
-│       ├── home/
-│       │   └── index.html   # Home page
-│       ├── auth/
-│       │   ├── login.html   # Login page
-│       │   └── register.html # Registration page
-│       └── dashboard/
-│           └── index.html   # Dashboard page
+│       ├── base.html
+│       ├── partials/        # App header and footer
+│       ├── auth/            # Login and register (shared layout)
+│       └── dashboard/       # Portfolio and newsletter pages
 ├── tests/                   # Pytest suite
 ├── render.yaml              # Render blueprint (web service + Postgres)
 ├── requirements.txt         # Python dependencies

@@ -1,40 +1,17 @@
-{% extends 'base.html' %}
+{% extends 'auth/_layout.html' %}
 
-{% block title %}Register - CoinFlow{% endblock %}
+{% block title %}Register - Coinflow{% endblock %}
 
-{% block content %}
-<div class="auth-container">
-    <div class="auth-card">
-        <h2>Create Your Account</h2>
-        <form method="post" class="auth-form" id="register-form">
-            <div class="form-group">
-                <label for="username">Username</label>
-                <input type="text" id="username" name="username" required autofocus>
-                <small class="form-hint">Choose a unique username</small>
-            </div>
-            <div class="form-group">
-                <label for="email">Email</label>
-                <input type="email" id="email" name="email" required>
-                <small class="form-hint">We'll never share your email</small>
-            </div>
-            <div class="form-group">
-                <label for="password">Password</label>
-                <input type="password" id="password" name="password" required minlength="6">
-                <small class="form-hint">At least 6 characters</small>
-            </div>
-            <div class="form-group">
-                <label for="confirm-password">Confirm Password</label>
-                <input type="password" id="confirm-password" name="confirm-password" required>
-            </div>
-            <button type="submit" class="btn btn-primary btn-block">Register</button>
-        </form>
-        <p class="auth-footer">
-            Already have an account? <a href="{{ url_for('auth.login') }}">Login here</a>
-        </p>
-    </div>
-</div>
+{% block toggle %}
+<a href="{{ url_for('auth.login') }}" class="auth-toggle">Log In</a>
 {% endblock %}
 
-{% block extra_js %}
-<script src="{{ url_for('static', filename='js/register.js') }}"></script>
+{% block form %}
+<form method="post" class="auth-form" data-loading="Creating your account...">
+    <h1>Sign Up</h1>
+    <input name="email" type="email" placeholder="Email" autocomplete="email" value="{{ request.form.get('email', '') }}" required autofocus>
+    <input name="username" placeholder="Username" autocomplete="username" value="{{ request.form.get('username', '') }}" required>
+    <input name="password" type="password" placeholder="Password (min 6 characters)" autocomplete="new-password" minlength="6" required>
+    <button type="submit">Sign Up</button>
+</form>
 {% endblock %}

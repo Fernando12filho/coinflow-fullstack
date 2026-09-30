@@ -1,25 +1,16 @@
-{% extends 'base.html' %}
+{% extends 'auth/_layout.html' %}
 
-{% block title %}Login - CoinFlow{% endblock %}
+{% block title %}Log In - Coinflow{% endblock %}
 
-{% block content %}
-<div class="auth-container">
-    <div class="auth-card">
-        <h2>Login to CoinFlow</h2>
-        <form method="post" class="auth-form">
-            <div class="form-group">
-                <label for="username">Username</label>
-                <input type="text" id="username" name="username" required autofocus>
-            </div>
-            <div class="form-group">
-                <label for="password">Password</label>
-                <input type="password" id="password" name="password" required>
-            </div>
-            <button type="submit" class="btn btn-primary btn-block">Login</button>
-        </form>
-        <p class="auth-footer">
-            Don't have an account? <a href="{{ url_for('auth.register') }}">Register here</a>
-        </p>
-    </div>
-</div>
+{% block toggle %}
+<a href="{{ url_for('auth.register') }}" class="auth-toggle">Register</a>
+{% endblock %}
+
+{% block form %}
+<form method="post" class="auth-form" data-loading="Logging in...">
+    <h1>Log In</h1>
+    <input name="username" placeholder="Username" autocomplete="username" required autofocus>
+    <input name="password" type="password" placeholder="Password" autocomplete="current-password" required>
+    <button type="submit">Log In</button>
+</form>
 {% endblock %}

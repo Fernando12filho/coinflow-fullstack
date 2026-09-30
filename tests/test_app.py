@@ -36,10 +36,17 @@ def login(client, username='alice', password='secret1'):
     return client.post('/auth/login', data={'username': username, 'password': password})
 
 
-def test_home_page_for_anonymous_user(client):
-    response = client.get('/')
+def test_home_page_sends_anonymous_user_to_login(client):
+    assert client.get('/').headers['Location'] == '/auth/login'
+    response = client.get('/auth/login')
     assert response.status_code == 200
-    assert b'Track Your Bitcoin Journey' in response.data
+    assert b'What is Coinflow?' in response.data
+
+
+def test_register_page(client):
+    response = client.get('/auth/register')
+    assert response.status_code == 200
+    assert b'Sign Up' in response.data
 
 
 def test_healthz(client):
@@ -49,7 +56,10 @@ def test_healthz(client):
 def test_register_login_and_dashboard(client):
     assert register(client).headers['Location'] == '/auth/login'
     assert login(client).headers['Location'] == '/'
-    assert b'Your Bitcoin Dashboard' in client.get('/dashboard').data
+    page = client.get('/').data
+    assert b'Add Transaction' in page
+    assert b'alice' in page
+    assert b'Subscribe to our Newsletter' in client.get('/newsletter').data
 
 
 def test_duplicate_registration_is_rejected(client):
@@ -171,3 +181,24 @@ def test_price_falls_back_to_next_source(app, monkeypatch):
     monkeypatch.setattr(bitcoin.requests, 'get', lambda url, timeout: Response(url))
     with app.app_context():
         assert bitcoin._fetch_bitcoin_price() == 83521.92
+
+
+def test_holding_purchase_date(client):
+    register(client)
+    login(client)
+    response = client.post('/api/bitcoin/holdings', json={
+        'amount': 0.25, 'purchase_price': 60000, 'purchase_date': '2024-03-15',
+    })
+    assert response.get_json()['success'] is True
+    holding = client.get('/api/bitcoin/holdings').get_json()['holdings'][0]
+    assert holding['purchase_date'] == 'Fri, 15 Mar 2024 00:00:00 GMT'
+
+    for bad_date in ('2999-01-01', 'yesterday'):
+        response = client.post('/api/bitcoin/holdings', json={
+            'amount': 1, 'purchase_price': 1, 'purchase_date': bad_date,
+        })
+        assert response.status_code == 400
+
+
+def test_newsletter_page_requires_login(client):
+    assert client.get('/newsletter').headers['Location'] == '/auth/login'

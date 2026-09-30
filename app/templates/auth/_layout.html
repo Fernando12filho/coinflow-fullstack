@@ -1,0 +1,63 @@
+{% extends 'base.html' %}
+
+{% block body %}
+<div class="auth-background">
+    <div class="auth-box">
+        <div class="auth-header">
+            <div class="logo-name">
+                <img src="{{ url_for('static', filename='img/logo.svg') }}" alt="">
+                <span>CoinFlow</span>
+            </div>
+            {% block toggle %}{% endblock %}
+        </div>
+        {% block form %}{% endblock %}
+    </div>
+</div>
+
+<section class="about-section">
+    <h2>An online Bitcoin Tracker and more</h2>
+
+    <div class="about-content">
+        <h2>What is Coinflow?</h2>
+        <p>
+            Coinflow is your personalized Bitcoin investment tracker. Monitor your
+            Bitcoin holdings, see your profit or loss at today's price, and stay
+            updated with our newsletter — all in one place. Whether you're a new
+            holder or a seasoned investor, Coinflow helps you organize and grow
+            your Bitcoin journey.
+        </p>
+    </div>
+
+    <div class="about-content">
+        <h2>How To Use CoinFlow?</h2>
+        <ul>
+            <li>Create an account or log in securely.</li>
+            <li>Add your Bitcoin investments.</li>
+            <li>Track your profit and loss at the live Bitcoin price.</li>
+            <li>Subscribe to the newsletter for market updates.</li>
+        </ul>
+    </div>
+
+    <div class="about-content">
+        <h2>Current Features</h2>
+        <ul>
+            <li>Bitcoin Investment Tracking</li>
+            <li>Live Profit / Loss</li>
+            <li>Newsletter</li>
+        </ul>
+    </div>
+
+    <div class="about-content">
+        <h2>Coming Soon</h2>
+        <ul>
+            <li>Invoice Generator</li>
+            <li>Article Library and Forum</li>
+            <li>Advanced Analytics (charts, tax reports)</li>
+            <li>Multi-currency Support</li>
+            <li>Self-custody Education &amp; Tools</li>
+        </ul>
+    </div>
+</section>
+
+{% include 'partials/footer.html' %}
+{% endblock %}

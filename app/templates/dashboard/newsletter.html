@@ -1,0 +1,41 @@
+{% extends 'base.html' %}
+
+{% block title %}Newsletter - Coinflow{% endblock %}
+
+{% block body %}
+<div class="home-container">
+    {% include 'partials/app_header.html' %}
+
+    <section class="content-card card">
+        <p id="newsletter-loading" class="newsletter-status">Checking your subscription...</p>
+
+        <div id="newsletter-subscribed" class="newsletter-form hidden">
+            <h1>Subscribed</h1>
+            <p class="newsletter-status">You are subscribed with <strong id="subscribed-email"></strong></p>
+            <button type="button" id="unsubscribe-button" class="btn-blue">Unsubscribe</button>
+        </div>
+
+        <form id="newsletter-form" class="newsletter-form hidden">
+            <h1>Subscribe to our Newsletter</h1>
+            <input type="email" name="email" value="{{ g.user['email'] }}" placeholder="Enter your email" required>
+            <button type="submit" class="btn-blue">Subscribe</button>
+        </form>
+    </section>
+
+    <section class="content-card card">
+        <h1>Past Newsletters</h1>
+        <p class="placeholder-text">Nothing yet.</p>
+    </section>
+
+    <section class="content-card card">
+        <h1>Articles</h1>
+        <p class="placeholder-text">Nothing yet.</p>
+    </section>
+</div>
+
+{% include 'partials/footer.html' %}
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/newsletter.js') }}"></script>
+{% endblock %}
