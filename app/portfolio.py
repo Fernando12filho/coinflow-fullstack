@@ -137,12 +137,13 @@ def load_rows(user_id):
     ).fetchall()
 
 
-def insert_trade(db, user_id, trade, notes, source='manual'):
+def insert_trade(db, user_id, trade, notes, source='manual', import_id=None, trade_hash=None):
     return db.execute(
         'INSERT INTO trades (user_id, side, trade_date, btc_amount, fiat_amount, fee_amount, '
-        'fee_asset, currency, source, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id',
+        'fee_asset, currency, source, notes, import_id, trade_hash) '
+        'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id',
         (user_id, trade.side, trade.date.isoformat(' '), fmt(trade.btc), fmt(trade.fiat),
-         fmt(trade.fee), trade.fee_asset, trade.currency, source, notes),
+         fmt(trade.fee), trade.fee_asset, trade.currency, source, notes, import_id, trade_hash),
     ).fetchone()['id']
 
 

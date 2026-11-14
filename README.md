@@ -7,6 +7,7 @@ A full-stack Flask application for tracking Bitcoin: record buys, sells and rewa
 - 🔐 **User Authentication**: Secure registration and login system with password hashing
 - 📒 **Trade Ledger**: Record buys, sells and rewards (e.g. staking) with fees in USD or BTC, notes, and editing
 - 💹 **Break-even & P/L**: Break-even price, average cost, and realized / unrealized profit and loss, all with exact decimal math
+- 📥 **CSV Import**: Bring in your history from Kraken (Ledgers export) or Coinbase (Transaction history). See a preview first; files and trades already imported are skipped, and every row that isn't imported is listed with the reason
 - 🛡️ **Consistent History**: Changes that would make your history impossible (e.g. selling BTC you didn't hold yet) are refused with a clear message
 - 📧 **Newsletter Subscription**: Stay updated with Bitcoin market insights
 - 💻 **Responsive Design**: "Brushed MSX" dark theme (see `STYLE_GUIDE.md`) that works from phone to desktop
@@ -72,6 +73,8 @@ coinflow-fullstack/
 │   ├── bitcoin.py           # Live BTC price (CoinGecko, Coinbase fallback)
 │   ├── ledger.py            # Calculation engine: break-even, average cost, P/L (pure Python)
 │   ├── portfolio.py         # Trade storage and the /api/trades + /api/portfolio routes
+│   ├── imports.py           # /api/imports: preview, import and remove exchange CSV files
+│   ├── importers/           # Kraken and Coinbase CSV parsers (pure Python)
 │   ├── newsletter.py        # Newsletter blueprint
 │   ├── dashboard.py         # Dashboard blueprint
 │   ├── db.py                # Database utilities
@@ -83,12 +86,13 @@ coinflow-fullstack/
 │   │   └── js/
 │   │       ├── main.js      # Shared helpers and popups (SweetAlert2)
 │   │       ├── dashboard.js # Portfolio: summary, stats, ledger, add/edit form
+│   │       ├── import.js    # Import page: preview, import, imported files
 │   │       └── newsletter.js
 │   └── templates/
 │       ├── base.html
 │       ├── partials/        # App header and footer
 │       ├── auth/            # Login and register (shared layout)
-│       └── dashboard/       # Portfolio and newsletter pages
+│       └── dashboard/       # Portfolio, import and newsletter pages
 ├── tests/                   # Pytest suite (unit, API and browser tests)
 ├── PLAN.md                  # Roadmap and progress
 ├── CLAUDE.md                # How we work on this repo
@@ -117,6 +121,14 @@ coinflow-fullstack/
 3. See your break-even price, average cost and profit/loss update at the live price
 4. Open the **Transactions** tab to see every trade with its running break-even; edit or delete any of them
 
+### Import from an exchange
+1. Open **Import** in the navigation
+2. Choose a Kraken Ledgers CSV or a Coinbase Transaction history CSV and click **Preview**
+3. Check the preview: trades found, what's new, the date range, and any skipped rows with the reason
+4. Click **Import**. Each imported file is listed below and can be removed with its trades
+
+Only BTC bought, sold or earned in USD is imported for now. Deposits, withdrawals and transfers are skipped: moving your own BTC doesn't change what you paid for it.
+
 ### Newsletter
 1. Enter your email on the home page or dashboard
 2. Subscribe to receive Bitcoin market updates
@@ -140,6 +152,14 @@ coinflow-fullstack/
 - `PUT /api/trades/<id>` - Replace a trade
 - `DELETE /api/trades/<id>` - Delete a trade
 - `GET /api/portfolio` - Position summary: held, invested, proceeds, fees, break-even, average cost, value, total / realized / unrealized P/L
+
+### Imports (require auth)
+- `POST /api/imports/preview` - Upload a CSV (`file` field) and get a preview; nothing is saved
+- `POST /api/imports` - Import the file's new trades (`409` if this exact file was imported before)
+- `GET /api/imports` - Imported files
+- `DELETE /api/imports/<id>` - Remove an import and its trades
+
+Uploads are limited to 5 MB.
 
 Amounts are sent and returned as decimal strings (e.g. `"0.005"`) so no precision is lost. A change that would make the history impossible is refused with `400` and an explanation.
 
@@ -169,6 +189,14 @@ API routes that require auth return `401` JSON when not logged in.
 - `currency` - Trade currency (USD)
 - `source`, `import_id`, `trade_hash` - Where the trade came from (manual now; CSV import later)
 - `notes` - Optional notes
+
+### Imports Table
+- `id` - Primary key
+- `user_id` - Foreign key to users
+- `provider` - `kraken` or `coinbase`
+- `filename`, `file_hash` - The uploaded file and its SHA-256 (the same file can't be imported twice)
+- `trade_count`, `date_from`, `date_to` - What the import added
+- `imported_at` - When it was imported
 
 Databases from older versions are migrated on startup: rows from the old `bitcoin_holding` table become buys in `trades`, and the old `bitcoin_holding` and `transaction_history` tables are dropped.
 

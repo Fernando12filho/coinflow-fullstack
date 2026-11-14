@@ -235,3 +235,15 @@ def test_trade_form_fields(client):
         assert f'name="{name}"' in html, name
     assert re.search(r'<select[^>]*name="fee_asset"', html)
     assert '<option value="BTC">BTC</option>' in html
+
+
+def test_import_page(client):
+    assert client.get('/import').headers['Location'] == '/auth/login'
+    register(client)
+    login(client)
+    html = client.get('/import').data.decode()
+    assert re.search(r'<a[^>]*class="pill active"[^>]*aria-current="page"[^>]*>Import</a>', html)
+    assert re.search(r'<input[^>]*type="file"[^>]*name="file"[^>]*accept="\.csv,text/csv"', html)
+    assert 'class="window"' in html and 'class="stripe-band' in html
+    # The nav links to the page from every app page
+    assert 'href="/import"' in client.get('/').data.decode()
