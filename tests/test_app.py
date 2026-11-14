@@ -46,7 +46,7 @@ def test_wrong_password(client):
 
 
 def test_api_requires_login(client):
-    response = client.get('/api/bitcoin/holdings')
+    response = client.get('/api/trades')
     assert response.status_code == 401
     assert response.get_json()['success'] is False
 
@@ -59,46 +59,23 @@ def test_price(client):
     assert client.get('/api/bitcoin/price').get_json() == {'success': True, 'price': 50000.0}
 
 
-def test_holdings_profit_loss(client):
+def test_trade_lifecycle(client):
     register(client)
     login(client)
-    response = client.post('/api/bitcoin/holdings', json={
-        'amount': 0.5, 'purchase_price': 40000, 'notes': '<b>hi</b>',
+    response = client.post('/api/trades', json={
+        'side': 'buy', 'date': '2024-01-10', 'btc': '0.5', 'fiat': '20000', 'notes': '<b>hi</b>',
     })
-    assert response.get_json()['success'] is True
+    assert response.status_code == 201
 
-    data = client.get('/api/bitcoin/holdings').get_json()
-    assert data['summary']['total_invested'] == 20000
-    assert data['summary']['current_value'] == 25000
-    assert data['summary']['total_profit_loss'] == 5000
-    assert data['holdings'][0]['notes'] == '<b>hi</b>'
+    # Price is $50,000 in tests: 0.5 BTC is worth $25,000, a $5,000 gain
+    portfolio = client.get('/api/portfolio').get_json()['portfolio']
+    assert (portfolio['invested'], portfolio['value'], portfolio['total_pnl']) == ('20000', '25000', '5000')
+    trade = client.get('/api/trades').get_json()['trades'][0]
+    assert trade['notes'] == '<b>hi</b>'  # stored as plain text; the UI never renders it as HTML
 
-    holding_id = data['holdings'][0]['id']
-    assert client.delete(f'/api/bitcoin/holdings/{holding_id}').get_json()['success'] is True
-    assert client.get('/api/bitcoin/holdings').get_json()['holdings'] == []
-
-    # Deleting is a correction, not a sale: the entry disappears from the history entirely
-    assert client.get('/api/bitcoin/transactions').get_json()['transactions'] == []
-
-
-def test_invalid_holding(client):
-    register(client)
-    login(client)
-    assert client.post('/api/bitcoin/holdings', json={'amount': -1, 'purchase_price': 5}).status_code == 400
-    assert client.post('/api/bitcoin/holdings', json={'amount': 'abc', 'purchase_price': 5}).status_code == 400
-    assert client.post('/api/bitcoin/holdings', data='not json').status_code == 400
-
-
-def test_cannot_delete_other_users_holding(client):
-    register(client)
-    login(client)
-    client.post('/api/bitcoin/holdings', json={'amount': 1, 'purchase_price': 1000})
-    holding_id = client.get('/api/bitcoin/holdings').get_json()['holdings'][0]['id']
-    client.get('/auth/logout')
-
-    register(client, username='bob', email='bob@example.com')
-    login(client, username='bob')
-    assert client.delete(f'/api/bitcoin/holdings/{holding_id}').status_code == 404
+    # Deleting is a correction, not a sale: the trade disappears entirely
+    assert client.delete(f"/api/trades/{trade['id']}").get_json()['success'] is True
+    assert client.get('/api/trades').get_json()['trades'] == []
 
 
 def test_newsletter_flow(client):
@@ -123,15 +100,8 @@ def test_production_requires_secret_key(monkeypatch):
         create_app({'TESTING': True})
 
 
-def test_holdings_without_price_are_not_shown_as_a_loss(client, monkeypatch):
+def test_price_endpoint_reports_missing_price(client, monkeypatch):
     monkeypatch.setattr(bitcoin, '_fetch_bitcoin_price', lambda: None)
-    register(client)
-    login(client)
-    client.post('/api/bitcoin/holdings', json={'amount': 1, 'purchase_price': 1000})
-    summary = client.get('/api/bitcoin/holdings').get_json()['summary']
-    assert summary['total_invested'] == 1000
-    assert summary['current_value'] is None
-    assert summary['total_profit_loss'] is None
     assert client.get('/api/bitcoin/price').status_code == 500
 
 
@@ -151,23 +121,6 @@ def test_price_falls_back_to_next_source(app, monkeypatch):
     monkeypatch.setattr(bitcoin.requests, 'get', lambda url, timeout: Response(url))
     with app.app_context():
         assert bitcoin._fetch_bitcoin_price() == 83521.92
-
-
-def test_holding_purchase_date(client):
-    register(client)
-    login(client)
-    response = client.post('/api/bitcoin/holdings', json={
-        'amount': 0.25, 'purchase_price': 60000, 'purchase_date': '2024-03-15',
-    })
-    assert response.get_json()['success'] is True
-    holding = client.get('/api/bitcoin/holdings').get_json()['holdings'][0]
-    assert holding['purchase_date'] == 'Fri, 15 Mar 2024 00:00:00 GMT'
-
-    for bad_date in ('2999-01-01', 'yesterday'):
-        response = client.post('/api/bitcoin/holdings', json={
-            'amount': 1, 'purchase_price': 1, 'purchase_date': bad_date,
-        })
-        assert response.status_code == 400
 
 
 def test_newsletter_page_requires_login(client):
@@ -264,3 +217,21 @@ def test_popups_are_themed_by_css_not_inline_colours(client):
     js = client.get('/static/js/main.js').data.decode()
     assert 'confirmButtonColor' not in js
     assert "confirmButton: 'swal-danger'" in js
+
+
+def test_transactions_table_has_ledger_columns(client):
+    html = pages(client)['dashboard']
+    headers = re.findall(r'<th[^>]*>(.*?)</th>', html, re.S)
+    visible = [re.sub(r'<[^>]+>', '', h).strip() for h in headers]
+    assert visible == ['Stripe', 'Type', 'Date', 'BTC', 'Price / BTC', 'Fee',
+                       'Break-even', 'Realized P&amp;L', 'Notes', 'Actions']
+
+
+def test_trade_form_fields(client):
+    html = pages(client)['dashboard']
+    for side in ('buy', 'sell', 'reward'):
+        assert f'name="side" value="{side}"' in html
+    for name in ('date', 'btc', 'fiat', 'fee', 'notes'):
+        assert f'name="{name}"' in html, name
+    assert re.search(r'<select[^>]*name="fee_asset"', html)
+    assert '<option value="BTC">BTC</option>' in html

@@ -39,6 +39,29 @@
                 <div class="stripe-band stripe-band--thin" aria-hidden="true"></div>
             </section>
 
+            <section class="stat-row" aria-label="Position summary">
+                <div class="stat">
+                    <p class="stat-label">Break-even price</p>
+                    <p class="stat-value" id="stat-break-even">—</p>
+                    <p class="stat-note" id="stat-break-even-note">Sell everything at this price to end up even</p>
+                </div>
+                <div class="stat">
+                    <p class="stat-label">Average cost</p>
+                    <p class="stat-value" id="stat-average-cost">—</p>
+                    <p class="stat-note">What each BTC you hold cost, on average</p>
+                </div>
+                <div class="stat">
+                    <p class="stat-label">Realized P&amp;L</p>
+                    <p class="stat-value" id="stat-realized" data-sensitive>********</p>
+                    <p class="stat-note">Locked in by your sales</p>
+                </div>
+                <div class="stat">
+                    <p class="stat-label">Unrealized P&amp;L</p>
+                    <p class="stat-value" id="stat-unrealized" data-sensitive>********</p>
+                    <p class="stat-note">On the BTC you still hold</p>
+                </div>
+            </section>
+
             <section class="user-assets-transactions">
                 <div class="button-tabs" role="tablist">
                     <button type="button" id="tab-assets-button" class="active" data-tab="assets" role="tab" aria-selected="true" aria-controls="tab-assets">Assets</button>
@@ -65,12 +88,13 @@
                             <thead>
                                 <tr>
                                     <th class="cell-chip"><span class="visually-hidden">Stripe</span></th>
-                                    <th>Coin Name</th>
-                                    <th>Transaction Id</th>
-                                    <th>Purchase Date</th>
-                                    <th class="num">BTC Amount</th>
-                                    <th class="num">Invested</th>
-                                    <th class="num">Profit / Loss</th>
+                                    <th>Type</th>
+                                    <th>Date</th>
+                                    <th class="num">BTC</th>
+                                    <th class="num">Price / BTC</th>
+                                    <th class="num">Fee</th>
+                                    <th class="num">Break-even</th>
+                                    <th class="num">Realized P&amp;L</th>
                                     <th>Notes</th>
                                     <th class="cell-actions"><span class="visually-hidden">Actions</span></th>
                                 </tr>
@@ -90,38 +114,55 @@
     </div>
 </div>
 
-<div id="investment-popup" class="popup-overlay hidden">
+<div id="trade-popup" class="popup-overlay hidden">
     <div class="popup window" role="dialog" aria-modal="true" aria-labelledby="popup-title">
         <div class="popup-header">
-            <h2 id="popup-title">Add Investment</h2>
+            <h2 id="popup-title">Add Transaction</h2>
             <button type="button" class="pill pill-icon close-button" data-close-popup aria-label="Close">
                 <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M3 3l8 8M11 3l-8 8" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
             </button>
         </div>
         <div class="stripe-band stripe-band--thin" aria-hidden="true"></div>
-        <form id="investment-form">
+        <form id="trade-form">
+            <fieldset class="side-picker">
+                <legend>Type</legend>
+                <div class="segmented">
+                    <label><input type="radio" name="side" value="buy" checked><span>Buy</span></label>
+                    <label><input type="radio" name="side" value="sell"><span>Sell</span></label>
+                    <label><input type="radio" name="side" value="reward"><span>Reward</span></label>
+                </div>
+            </fieldset>
             <label>
-                Coin Name
-                <input type="text" value="Bitcoin" disabled>
+                Date
+                <input type="date" name="date" required>
             </label>
             <label>
-                Investment Amount ($)
-                <input type="number" name="investment_amount" step="0.01" min="0.01" required>
+                BTC amount
+                <input type="number" name="btc" step="0.00000001" min="0.00000001" inputmode="decimal" required>
             </label>
-            <label>
-                Crypto Amount (BTC)
-                <input type="number" name="crypto_amount" step="0.00000001" min="0.00000001" required>
+            <label id="fiat-field">
+                <span id="fiat-label">Amount paid ($)</span>
+                <input type="number" name="fiat" step="any" min="0.01" inputmode="decimal" required>
             </label>
-            <label>
-                Investment Date
-                <input type="date" name="investment_date" required>
-            </label>
+            <div class="fee-row">
+                <label>
+                    Fee (optional)
+                    <input type="number" name="fee" step="any" min="0" inputmode="decimal">
+                </label>
+                <label>
+                    Fee paid in
+                    <select name="fee_asset">
+                        <option value="USD">USD</option>
+                        <option value="BTC">BTC</option>
+                    </select>
+                </label>
+            </div>
             <label>
                 Notes (optional)
                 <textarea name="notes" rows="2" maxlength="500" placeholder="e.g. Monthly DCA buy"></textarea>
             </label>
             <p class="price-hint" id="price-per-btc"></p>
-            <button type="submit">Submit</button>
+            <button type="submit" id="trade-submit">Save</button>
         </form>
     </div>
 </div>

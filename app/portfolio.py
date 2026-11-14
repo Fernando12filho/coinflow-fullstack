@@ -214,19 +214,27 @@ def portfolio_payload(position, price):
 
 
 def migrate_legacy_holdings(db):
-    """Move rows from the old bitcoin_holding table into trades as manual buys.
+    """Move rows from the pre-ledger bitcoin_holding table into trades, then drop
+    the old bitcoin_holding and transaction_history tables.
 
-    Insert and delete happen in one transaction, so running this again is safe.
+    Everything happens in one transaction, so a failure leaves the old data in place.
     """
-    holdings = db.execute('SELECT * FROM bitcoin_holding ORDER BY id').fetchall()
-    if not holdings:
+    from app.db import table_exists
+
+    if not table_exists(db, 'bitcoin_holding'):
+        if table_exists(db, 'transaction_history'):
+            db.execute('DROP TABLE transaction_history')
+            db.commit()
         return
-    for h in holdings:
+
+    for h in db.execute('SELECT * FROM bitcoin_holding ORDER BY id').fetchall():
         btc = Decimal(str(h['amount']))
         fiat = (btc * Decimal(str(h['purchase_price']))).quantize(OUTPUT_PRECISION)
         trade = Trade('buy', _as_datetime(h['purchase_date']), btc, fiat, currency=CURRENCY)
         insert_trade(db, h['user_id'], trade, h['notes'] or '')
-    db.execute('DELETE FROM bitcoin_holding')
+    db.execute('DROP TABLE bitcoin_holding')
+    if table_exists(db, 'transaction_history'):
+        db.execute('DROP TABLE transaction_history')
     db.commit()
 
 
@@ -258,7 +266,7 @@ def create_trade():
 def save_trade(data, trade_id=None, source='manual'):
     """Validate and store a new trade (trade_id None) or replace an existing one.
 
-    Returns (status, payload). Shared by the API and the old holdings endpoint.
+    Returns (status, payload).
     """
     if data is None:
         return 400, {'success': False, 'error': 'Request body must be a JSON object'}
