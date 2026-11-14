@@ -247,3 +247,15 @@ def test_import_page(client):
     assert 'class="window"' in html and 'class="stripe-band' in html
     # The nav links to the page from every app page
     assert 'href="/import"' in client.get('/').data.decode()
+
+
+def test_dashboard_has_the_price_chart(client):
+    html = pages(client)['dashboard']
+    assert '/static/vendor/lightweight-charts-5.2.1/lightweight-charts.standalone.production.js' in html
+    assert 'id="price-chart"' in html
+    for r in ('1M', '3M', '1Y', '3Y', '5Y', 'ALL'):
+        assert f'data-range="{r}"' in html
+    assert 'id="show-trades"' in html
+    # Lightweight Charts licence: attribution notice + link to tradingview.com on the page
+    assert 'href="https://www.tradingview.com/"' in html
+    assert 'TradingView, Inc.' in html

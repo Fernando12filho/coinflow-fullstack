@@ -1,6 +1,7 @@
 import time
 import requests
 from flask import Blueprint, current_app, jsonify
+from app.auth import login_required
 
 bp = Blueprint('bitcoin', __name__, url_prefix='/api/bitcoin')
 
@@ -52,3 +53,34 @@ def get_price():
     if price:
         return jsonify({'success': True, 'price': price})
     return jsonify({'success': False, 'error': 'Unable to fetch price'}), 500
+
+
+@bp.route('/history', methods=['GET'])
+@login_required
+def get_history():
+    """Daily closes (topping up any finished days not stored yet) and the change since the last close"""
+    from datetime import datetime, timedelta, timezone
+    from decimal import Decimal
+    from app import prices
+    from app.db import get_db
+    from app.portfolio import fmt
+
+    db = get_db()
+    up_to_date = prices.sync(db)
+    closes = prices.load_closes(db)
+
+    day_change = None
+    live = get_bitcoin_price()
+    yesterday = datetime.now(timezone.utc).date() - timedelta(days=1)
+    if live and closes and closes[-1][0] == yesterday and closes[-1][1] > 0:
+        last_day, last_close = closes[-1]
+        percent = (Decimal(str(live)) - last_close) / last_close * 100
+        day_change = {'since': last_day.isoformat(), 'close': fmt(last_close), 'percent': fmt(percent)}
+
+    return jsonify({
+        'success': True,
+        'currency': prices.CURRENCY,
+        'up_to_date': up_to_date,
+        'closes': [{'date': day.isoformat(), 'close': fmt(close)} for day, close in closes],
+        'day_change': day_change,
+    })
