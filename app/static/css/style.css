@@ -149,38 +149,38 @@ img, svg { display: block; }
 
 /* ================= 4. Buttons ================= */
 
-/* Primary: amber MSX keycap */
+/* Primary: amber MSX keycap. Flat by user request: no border, no shadow (see CLAUDE.md) */
 .btn-primary,
 .auth-form button,
 .popup button[type="submit"] {
   height: 52px; padding: 0 22px;
-  border: 2px solid var(--edge); border-radius: var(--r-card);
+  border: 0; border-radius: var(--r-card);
   background: var(--amber); color: var(--ink);
-  box-shadow: 0 4px 0 var(--amber-shade);
+  box-shadow: none;
   font: bold 17px/1 var(--font); letter-spacing: .02em; text-transform: uppercase;
-  cursor: pointer; transition: transform .05s, box-shadow .05s, background .15s;
+  cursor: pointer; transition: background .15s, filter .05s;
 }
 .btn-primary:hover,
 .auth-form button:hover,
 .popup button[type="submit"]:hover { background: var(--amber-hover); }
 .btn-primary:active,
 .auth-form button:active,
-.popup button[type="submit"]:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--amber-shade); }
+.popup button[type="submit"]:active { filter: brightness(.9); }
 .btn-primary:disabled,
 .auth-form button:disabled,
-.popup button[type="submit"]:disabled { opacity: .6; cursor: wait; transform: none; }
+.popup button[type="submit"]:disabled { opacity: .6; cursor: wait; filter: none; }
 
 /* Form submits are full width */
 .auth-form button,
 .popup button[type="submit"] { width: 100%; height: 48px; font-size: 16px; }
 
-/* Secondary: Panther textured pill */
+/* Secondary: Panther textured pill. Flat by user request: no border, no shadow */
 .pill {
   display: inline-flex; align-items: center; justify-content: center; gap: 6px;
   height: 30px; padding: 0 14px;
-  border: 1px solid var(--edge); border-radius: var(--r-pill);
+  border: 0; border-radius: var(--r-pill);
   background: linear-gradient(#55524D, #3B3936);
-  box-shadow: var(--bevel-pill);
+  box-shadow: none;
   color: var(--text); font: bold 14px var(--font); text-decoration: none; white-space: nowrap;
   cursor: pointer;
 }
@@ -189,14 +189,14 @@ img, svg { display: block; }
 .pill.active,
 .pill[aria-current="page"] {
   background: linear-gradient(#1E1D1C, #2A2927);
-  box-shadow: var(--press-pill); color: var(--text-hi);
+  color: var(--text-hi);
 }
 
 .pill-icon { width: 36px; height: 32px; padding: 0; }
 
 .pill.disabled-link,
 .pill.disabled-link:hover {
-  border-color: #22211F; background: none; box-shadow: none;
+  background: rgba(255, 255, 255, .03); box-shadow: none;
   color: var(--text-off); cursor: default;
 }
 
@@ -266,7 +266,6 @@ img, svg { display: block; }
 }
 .eye-toggle:hover { background: rgba(28,27,26,.16); }
 .eye-toggle img { width: 22px; height: 22px; filter: brightness(0) saturate(0) opacity(.85); }
-.hero .stripe-band--thin { margin-top: auto; }
 
 /* Focus ring stays visible on paper */
 .hero :focus-visible,
@@ -599,18 +598,19 @@ input[type="date"] { color-scheme: dark; }
 .swal2-container.swal2-backdrop-show { background: rgba(10,10,9,.85) !important; }
 .swal2-styled.swal2-confirm {
   background: var(--amber) !important; color: var(--ink) !important;
-  border: 2px solid var(--edge) !important; border-radius: 4px !important;
-  box-shadow: 0 3px 0 var(--amber-shade) !important; font-weight: bold !important; text-transform: uppercase;
+  border: 0 !important; border-radius: 4px !important;
+  box-shadow: none !important; font-weight: bold !important; text-transform: uppercase;
 }
 .swal2-styled.swal2-confirm.swal-danger {
   background: var(--danger) !important; color: #FFF7EE !important;
-  box-shadow: 0 3px 0 var(--danger-shade) !important;
+  box-shadow: none !important;
 }
 .swal2-styled.swal2-cancel {
   background: linear-gradient(#55524D, #3B3936) !important; color: var(--text) !important;
-  border: 1px solid var(--edge) !important; border-radius: 999px !important;
+  border: 0 !important; border-radius: 999px !important; box-shadow: none !important;
 }
-.swal2-styled:focus { box-shadow: 0 0 0 2px var(--amber) !important; }
+.swal2-styled:focus { box-shadow: none !important; }
+.swal2-styled:focus-visible { outline: 2px solid var(--ink) !important; outline-offset: 2px; }
 .swal2-loader { border-color: var(--amber) transparent var(--amber) transparent !important; }
 
 /* ================= 13. Responsive ================= */
