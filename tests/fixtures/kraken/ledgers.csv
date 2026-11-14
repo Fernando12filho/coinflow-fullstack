@@ -1,0 +1,16 @@
+"txid","refid","time","type","subtype","aclass","subclass","asset","wallet","amount","fee","balance"
+"LDEP01-AAAAA-000001","QDEP01-AAAAA-AAAAAA","2024-01-02 09:00:00","deposit","","currency","fiat","USD","spot / main",1000.0000,0.0000,1000.0000
+"LTRD01-AAAAA-000002","TTRADE1-AAAAA-AAAAAA","2024-01-05 14:03:21","trade","tradespot","currency","fiat","USD","spot / main",-500.0000,1.3000,498.7000
+"LTRD01-AAAAA-000003","TTRADE1-AAAAA-AAAAAA","2024-01-05 14:03:21","trade","tradespot","currency","crypto","BTC","spot / main",0.0120000000,0.0000000000,0.0120000000
+"LTRD02-AAAAA-000004","TTRADE2-AAAAA-AAAAAA","2024-02-10 10:00:00","trade","tradespot","currency","fiat","USD","spot / main",-300.0000,0.0000,198.7000
+"LTRD02-AAAAA-000005","TTRADE2-AAAAA-AAAAAA","2024-02-10 10:00:00","trade","tradespot","currency","crypto","BTC","spot / main",0.0070000000,0.0000140000,0.0189860000
+"LSPD03-AAAAA-000006","QBUY3-AAAAA-AAAAAA","2024-03-01 12:00:00","spend","","currency","fiat","USD","spot / main",-97.0000,3.0000,98.7000
+"LRCV03-AAAAA-000007","QBUY3-AAAAA-AAAAAA","2024-03-01 12:00:02","receive","","currency","crypto","BTC","spot / main",0.0015000000,0.0000000000,0.0204860000
+"LERN04-AAAAA-000008","QSTK4-AAAAA-AAAAAA","2024-03-08 00:10:00","earn","reward","currency","crypto","BTC","earn / flexible",0.0000210000,0.0000000000,0.0000210000
+"LERN05-AAAAA-000009","QALC5-AAAAA-AAAAAA","2024-03-09 08:00:00","earn","allocation","currency","crypto","BTC","spot / main",-0.0050000000,0.0000000000,0.0154860000
+"LERN05-AAAAA-000010","QALC5-AAAAA-AAAAAA","2024-03-09 08:00:00","earn","allocation","currency","crypto","BTC","earn / flexible",0.0050000000,0.0000000000,0.0050210000
+"LWDR06-AAAAA-000011","QWDR6-AAAAA-AAAAAA","2024-04-01 11:30:00","withdrawal","","currency","crypto","BTC","spot / main",-0.0100000000,0.0000200000,0.0054660000
+"LTRD07-AAAAA-000012","TTRADE7-AAAAA-AAAAAA","2024-05-20 16:45:00","trade","tradespot","currency","crypto","BTC","spot / main",-0.0050000000,0.0000000000,0.0004660000
+"LTRD07-AAAAA-000013","TTRADE7-AAAAA-AAAAAA","2024-05-20 16:45:00","trade","tradespot","currency","fiat","USD","spot / main",350.0000,0.9100,447.7900
+"LTRD08-AAAAA-000014","TTRADE8-AAAAA-AAAAAA","2024-06-01 10:00:00","trade","tradespot","currency","fiat","EUR","spot / main",-200.0000,0.5000,299.5000
+"LTRD08-AAAAA-000015","TTRADE8-AAAAA-AAAAAA","2024-06-01 10:00:00","trade","tradespot","currency","crypto","BTC","spot / main",0.0030000000,0.0000000000,0.0034660000

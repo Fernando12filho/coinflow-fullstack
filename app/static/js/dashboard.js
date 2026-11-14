@@ -11,10 +11,6 @@ const MASK = '********';
 // MSX stripe colours, one per transaction row
 const STRIPES = ['--s1', '--s3', '--s7', '--s4', '--s2', '--s5', '--s6', '--s8'];
 
-const TRASH_ICON = '<svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">' +
-    '<path d="M2 4h10M5 4V2.5h4V4M3.5 4l.7 8h5.6l.7-8" fill="none" stroke="currentColor" stroke-width="1.3" ' +
-    'stroke-linecap="round" stroke-linejoin="round"/></svg>';
-
 const PENCIL_ICON = '<svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">' +
     '<path d="M9.5 2.5l2 2L5 11H3V9z M8 4l2 2" fill="none" stroke="currentColor" stroke-width="1.3" ' +
     'stroke-linecap="round" stroke-linejoin="round"/></svg>';

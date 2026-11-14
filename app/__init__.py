@@ -1,6 +1,6 @@
 import os
 from datetime import date
-from flask import Flask
+from flask import Flask, request
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 
@@ -16,6 +16,7 @@ def create_app(test_config=None):
         SESSION_COOKIE_HTTPONLY=True,
         SESSION_COOKIE_SAMESITE='Lax',
         SESSION_COOKIE_SECURE=is_production,
+        MAX_CONTENT_LENGTH=5 * 1024 * 1024,  # CSV uploads
     )
 
     if test_config is None:
@@ -56,6 +57,15 @@ def create_app(test_config=None):
 
     from . import portfolio
     app.register_blueprint(portfolio.bp)
+
+    from . import imports
+    app.register_blueprint(imports.bp)
+
+    @app.errorhandler(413)
+    def too_large(error):
+        if request.path.startswith('/api/'):
+            return {'success': False, 'error': 'That file is too large (the limit is 5 MB)'}, 413
+        return error
 
     @app.context_processor
     def inject_current_year():

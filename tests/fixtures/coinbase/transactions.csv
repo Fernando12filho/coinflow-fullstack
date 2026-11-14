@@ -1,0 +1,12 @@
+Transactions
+User,Sample User,00000000-0000-4000-8000-000000000000
+ID,Timestamp,Transaction Type,Asset,Quantity Transacted,Price Currency,Price at Transaction,Subtotal,Total (inclusive of fees and/or spread),Fees and/or Spread,Notes
+cb-0001,2024-01-15 10:30:00 UTC,Buy,BTC,0.002,USD,$42500.00,$85.00,$86.99,$1.99,Bought 0.002 BTC for $86.99 USD
+cb-0002,2024-02-01 08:00:00 UTC,Advanced Trade Buy,BTC,0.01,USD,"$43,000.00",$430.00,$430.86,$0.86,
+cb-0003,2024-02-20 12:00:00 UTC,Rewards Income,BTC,0.00001,USD,"$51,000.00",$0.51,$0.51,$0.00,Received 0.00001 BTC from Coinbase Rewards
+cb-0004,2024-03-05 18:30:00 UTC,Send,BTC,-0.005,USD,"$66,000.00",$330.00,$330.00,$0.00,Sent 0.005 BTC to bc1qexampleaddress
+cb-0005,2024-04-10 09:15:00 UTC,Sell,BTC,-0.004,USD,"$70,000.00",$280.00,$275.85,$4.15,Sold 0.004 BTC for $275.85 USD
+cb-0006,2024-05-01 13:00:00 UTC,Convert,BTC,-0.001,USD,"$60,000.00",$60.00,$60.00,$0.00,Converted 0.001 BTC to 0.02 ETH
+cb-0007,2024-05-02 13:00:00 UTC,Receive,BTC,0.003,USD,"$61,000.00",$183.00,$183.00,$0.00,Received 0.003 BTC from an external account
+cb-0008,2024-05-03 13:00:00 UTC,Buy,ETH,0.05,USD,"$3,000.00",$150.00,$152.99,$2.99,Bought 0.05 ETH for $152.99 USD
+cb-0009,2024-05-04 13:00:00 UTC,Buy,BTC,0.001,EUR,"€56,000.00",€56.00,€57.49,€1.49,Bought 0.001 BTC for €57.49 EUR

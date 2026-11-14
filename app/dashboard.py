@@ -24,3 +24,10 @@ def dashboard():
 def newsletter():
     """Newsletter subscription page"""
     return render_template('dashboard/newsletter.html')
+
+
+@bp.route('/import')
+@login_required
+def import_page():
+    """Import transactions from exchange CSV exports"""
+    return render_template('dashboard/import.html')

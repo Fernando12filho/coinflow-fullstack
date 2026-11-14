@@ -1,5 +1,10 @@
 // Main JavaScript - Common functionality
 
+// Trash icon for delete buttons (constant markup, safe for innerHTML)
+const TRASH_ICON = '<svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">' +
+    '<path d="M2 4h10M5 4V2.5h4V4M3.5 4l.7 8h5.6l.7-8" fill="none" stroke="currentColor" stroke-width="1.3" ' +
+    'stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
 // Format currency
 function formatCurrency(value) {
     if (value === null || value === undefined) {
@@ -82,6 +87,10 @@ function showLoading(title) {
         allowOutsideClick: false,
         didOpen: () => Swal.showLoading()
     });
+}
+
+function hideLoading() {
+    if (window.Swal) Swal.close();
 }
 
 function showSuccess(title) {

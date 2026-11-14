@@ -1,5 +1,6 @@
 {% set on_portfolio = request.endpoint in ('dashboard.index', 'dashboard.dashboard') %}
 {% set on_newsletter = request.endpoint == 'dashboard.newsletter' %}
+{% set on_import = request.endpoint == 'dashboard.import_page' %}
 <header class="app-header">
     <a href="{{ url_for('dashboard.index') }}" class="logo">
         <img src="{{ url_for('static', filename='img/logo.svg') }}" alt="">
@@ -7,6 +8,7 @@
     </a>
     <nav class="nav" aria-label="Main">
         <a href="{{ url_for('dashboard.index') }}" class="pill{{ ' active' if on_portfolio }}"{% if on_portfolio %} aria-current="page"{% endif %}>Portfolio</a>
+        <a href="{{ url_for('dashboard.import_page') }}" class="pill{{ ' active' if on_import }}"{% if on_import %} aria-current="page"{% endif %}>Import</a>
         <a href="{{ url_for('dashboard.newsletter') }}" class="pill{{ ' active' if on_newsletter }}"{% if on_newsletter %} aria-current="page"{% endif %}>Newsletter</a>
         <span class="pill disabled-link" title="Coming soon" aria-disabled="true">Invoice MK</span>
         <span class="pill disabled-link" title="Coming soon" aria-disabled="true">Forum</span>

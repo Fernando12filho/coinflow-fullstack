@@ -36,3 +36,19 @@ CREATE TABLE IF NOT EXISTS trades (
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_trades_user_hash ON trades (user_id, trade_hash);
 CREATE INDEX IF NOT EXISTS idx_trades_user_date ON trades (user_id, trade_date);
+
+-- One row per imported exchange file. Its trades point back here via trades.import_id.
+CREATE TABLE IF NOT EXISTS imports (
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER NOT NULL,
+  provider TEXT NOT NULL,                   -- kraken | coinbase
+  filename TEXT NOT NULL,
+  file_hash TEXT NOT NULL,                  -- SHA-256 of the file, to refuse the same file twice
+  trade_count INTEGER NOT NULL,
+  date_from TIMESTAMP,
+  date_to TIMESTAMP,
+  imported_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users (id)
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_imports_user_file ON imports (user_id, file_hash);

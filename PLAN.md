@@ -127,16 +127,34 @@ Pure Python, no Flask, all math in `Decimal`.
 
 ## Phase 5: CSV import
 
-- [ ] Exchange detection from the header row (scan the first 20 lines: Coinbase puts notes
+- [x] Exchange detection from the header row (scan the first 20 lines: Coinbase puts notes
       above the header)
-- [ ] Kraken ledger parser: match up the two ledger lines of one trade, staking/earn rewards,
+- [x] Kraken ledger parser: match up the two ledger lines of one trade, staking/earn rewards,
       KFEE fee credits worth zero, skip cancelled entries
-- [ ] Coinbase transaction-history parser: Buy, Sell, rewards; skip Convert
-- [ ] Preview endpoint (nothing saved): counts, date range, totals, fees, duplicate count
-- [ ] Confirm endpoint with two duplicate checks: reject the same file twice (file hash),
+      _Done (5.1): `app/importers/kraken.py`. Pairs rows by `refid` (trade and "Buy Crypto"
+      spend/receive), current and older layouts (XXBT/ZUSD, XBT.M), rewards from `earn`/`staking`.
+      Only BTC/USD becomes a trade; deposits, withdrawals, transfers between own balances, other
+      currencies and cancelled trades are skipped with a reason and line number. KFEE rows are
+      skipped like any other non-BTC row._
+- [x] Coinbase transaction-history parser: Buy, Sell, rewards; skip Convert
+      _Done (5.2): `app/importers/coinbase.py`. Both header layouts (with/without `ID`), "$1,234.56"
+      amounts, negative sale quantities, rewards (Rewards Income, Coinbase Earn, ...). Send/Receive
+      and Convert are skipped with a reason._
+- [x] Preview endpoint (nothing saved): counts, date range, totals, fees, duplicate count
+- [x] Confirm endpoint with two duplicate checks: reject the same file twice (file hash),
       skip trades already stored (trade hash)
-- [ ] Imports page: list imported files, remove one and its trades
-- [ ] Test fixtures are our own synthetic CSVs that follow the documented formats
+      _Done (5.3): `app/imports.py` + `imports` table. Preview also reports skipped rows and any
+      history problem. Import saves the file record and new trades in one transaction and is
+      refused for a repeated file (409), nothing new, or an impossible history. Removing an import
+      is refused if a later trade depends on it. 5 MB upload limit. `tests/test_imports_api.py`
+      (16 tests, SQLite and Postgres 16)._
+- [x] Imports page: list imported files, remove one and its trades
+      _Done (5.4): `/import` page + nav item. File picker, preview (counts, date range,
+      duplicates, problem notice, expandable skipped rows), "Import N trades" disabled whenever the
+      import would be refused, imported files with remove. `tests/test_e2e_import.py` (5 browser
+      tests); browser fixtures moved to `tests/e2e_support.py`._
+- [x] Test fixtures are our own synthetic CSVs that follow the documented formats
+      _`tests/fixtures/`, written by hand; `tests/test_importers.py` (27 tests)._
 
 ## Phase 6: Price history + chart
 
