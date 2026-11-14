@@ -35,6 +35,10 @@ Set `TEST_DATABASE_URL` to run the same suite against Postgres.
   created with `CREATE TABLE IF NOT EXISTS`; existing data must survive an app restart.
 - SQL uses `?` placeholders (the Postgres wrapper in `app/db.py` converts them).
 - Frontend is vanilla JS. Build DOM with `textContent`, never `innerHTML` with user data.
+- **UI follows `STYLE_GUIDE.md`** ("Brushed MSX" dark theme). Use its tokens from `:root` in
+  `style.css`; no new colours, fonts or font weights outside it. New screens reuse `.window`,
+  `.stripe-band`, paper cards, wells, `.pill` and `.btn-primary`. Every control needs a visible
+  label or `aria-label` and must show the amber focus ring.
 
 ## satfolio
 

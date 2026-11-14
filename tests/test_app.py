@@ -1,3 +1,5 @@
+import re
+
 import pytest
 from app import create_app
 from app import bitcoin
@@ -170,3 +172,95 @@ def test_holding_purchase_date(client):
 
 def test_newsletter_page_requires_login(client):
     assert client.get('/newsletter').headers['Location'] == '/auth/login'
+
+
+# ---------- "Brushed MSX" restyle (STYLE_GUIDE.md §10) ----------
+
+
+def pages(client):
+    """HTML of every page: login and register logged out, dashboard and newsletter logged in"""
+    out = {'login': client.get('/auth/login').data.decode(),
+           'register': client.get('/auth/register').data.decode()}
+    register(client)
+    login(client)
+    out['dashboard'] = client.get('/').data.decode()
+    out['newsletter'] = client.get('/newsletter').data.decode()
+    return out
+
+
+def test_no_web_fonts_are_loaded(client):
+    for name, html in pages(client).items():
+        assert 'fonts.googleapis.com' not in html, name
+        assert 'fonts.gstatic.com' not in html, name
+
+
+def test_every_page_has_the_stripe_band(client):
+    for name, html in pages(client).items():
+        assert 'class="stripe-band' in html, name
+
+
+def test_app_pages_sit_in_a_window(client):
+    html = pages(client)
+    for name in ('dashboard', 'newsletter'):
+        assert 'class="window"' in html[name], name
+        assert '<main class="app-main">' in html[name], name
+    assert 'class="hero-row"' in html['dashboard']
+    assert 'class="auth-box window"' in html['login']
+
+
+def test_auth_inputs_have_visible_labels(client):
+    html = pages(client)
+    for name in ('login', 'register'):
+        for field in ('username', 'password'):
+            assert re.search(r'<label[^>]*>\s*\w+\s*<input[^>]*name="%s"' % field, html[name]), (name, field)
+    assert re.search(r'<label[^>]*>\s*Email\s*<input[^>]*name="email"', html['register'])
+
+
+def test_auth_pages_have_title_row_and_helper_line(client):
+    html = pages(client)
+    assert 'New here?' in html['login']
+    assert 'Already have an account?' in html['register']
+    assert 'At least 8 characters' in html['register']
+
+
+def test_active_nav_link_is_marked(client):
+    html = pages(client)
+    assert re.search(r'<a[^>]*class="pill active"[^>]*aria-current="page"[^>]*>Portfolio</a>', html['dashboard'])
+    assert re.search(r'<a[^>]*class="pill active"[^>]*aria-current="page"[^>]*>Newsletter</a>', html['newsletter'])
+    assert html['dashboard'].count('aria-disabled="true"') == 2
+    assert 'class="pill logout-button"' in html['dashboard']
+
+
+def test_transactions_table_has_hidden_header_cells(client):
+    html = pages(client)['dashboard']
+    assert '<span class="visually-hidden">Stripe</span>' in html
+    assert '<span class="visually-hidden">Actions</span>' in html
+
+
+def test_tabs_and_dialog_are_accessible(client):
+    html = pages(client)['dashboard']
+    assert re.search(r'id="tab-assets-button"[^>]*aria-selected="true"[^>]*aria-controls="tab-assets"', html)
+    assert re.search(r'id="tab-transactions-button"[^>]*aria-selected="false"[^>]*aria-controls="tab-transactions"', html)
+    assert '✖' not in html
+    assert re.search(r'class="pill pill-icon close-button"[^>]*aria-label="Close"', html)
+
+
+def test_footer_has_no_emoji(client):
+    for name, html in pages(client).items():
+        assert '❤' not in html, name
+        assert 'Made for Bitcoiners.' in html, name
+
+
+def test_stylesheet_uses_the_design_tokens(client):
+    css = client.get('/static/css/style.css').data.decode()
+    for token in ('--desk:', '--metal:', '--paper:', '--amber:', '--s8:', '--font:'):
+        assert token in css, token
+    assert 'Barlow' not in css and 'Fira' not in css
+    assert ':focus-visible' in css
+    assert re.search(r'font-weight:\s*(500|600|800|900)', css) is None  # Lucida Grande has 400 + 700 only
+
+
+def test_popups_are_themed_by_css_not_inline_colours(client):
+    js = client.get('/static/js/main.js').data.decode()
+    assert 'confirmButtonColor' not in js
+    assert "confirmButton: 'swal-danger'" in js

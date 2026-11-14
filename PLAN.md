@@ -88,6 +88,20 @@ Pure Python, no Flask, all math in `Decimal`.
       the current dashboard keeps working (checked in a browser). Migration checked on a copy
       of the local database: 0.0007 BTC @ $42,857.14 became a buy of 0.0007 BTC for exactly $30._
 
+## Restyle: "Brushed MSX" dark theme (STYLE_GUIDE.md)
+
+- [x] Tokens, one system font (no web fonts), brushed-metal windows, MSX stripe bands,
+      paper cards, wells, keycap + pill buttons, themed SweetAlert popups
+- [x] Markup: visible labels on auth forms, active nav marked with `aria-current`,
+      hidden "Stripe"/"Actions" table headers, SVG close/delete icons, no emoji
+- [x] JS: stripe chip per transaction row, signed +/− amounts, dialog returns focus to its trigger
+      _Done: 11 markup tests added to `tests/test_app.py` (125 total). Checked in a browser at
+      1280 / 860 / 390px: 0 font requests (was 9), no horizontal page scroll, no console errors.
+      Fixed on the way: "Add Transaction" wrapping in its keycap, and a hidden table-header label
+      widening the page on phones. Deviations from the guide: password hint says 8 characters
+      (F3), table alignment uses cell classes because of the extra Notes column, loading text on
+      the paper card uses `--ink-2` for contrast. Not yet run: an automated keyboard-only pass._
+
 ## Phase 4: Manual entry UI
 
 - [ ] Form supports Buy / Sell / Reward, fee, notes, and editing an existing trade

@@ -9,6 +9,18 @@ let latestSummary = null;
 
 const MASK = '********';
 
+// MSX stripe colours, one per transaction row
+const STRIPES = ['--s1', '--s3', '--s7', '--s4', '--s2', '--s5', '--s6', '--s8'];
+
+const TRASH_ICON = '<svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">' +
+    '<path d="M2 4h10M5 4V2.5h4V4M3.5 4l.7 8h5.6l.7-8" fill="none" stroke="currentColor" stroke-width="1.3" ' +
+    'stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
+// Hero sub-lines keep their label in the <p> and the number in its <span>
+function setHeroSub(id, text) {
+    document.querySelector(`#${id} span`).textContent = text;
+}
+
 function renderHero() {
     const summary = latestSummary;
     const showBtc = heroVisible['total-btc'];
@@ -23,12 +35,12 @@ function renderHero() {
     const profitLossEl = document.getElementById('total-profit-loss');
     profitLossEl.classList.remove('profit', 'loss');
     if (!summary || summary.total_profit_loss === null) {
-        profitLossEl.textContent = 'Profit / Loss: --';
+        setHeroSub('total-profit-loss', '--');
     } else if (!showTotal) {
-        profitLossEl.textContent = `Profit / Loss: ${MASK}`;
+        setHeroSub('total-profit-loss', MASK);
     } else {
-        profitLossEl.textContent = `Profit / Loss: ${formatCurrency(summary.total_profit_loss)} ` +
-            formatPercent(summary.total_profit_loss_percent);
+        setHeroSub('total-profit-loss', `${formatSignedCurrency(summary.total_profit_loss)} ` +
+            formatPercent(summary.total_profit_loss_percent));
         if (summary.total_profit_loss > 0) profitLossEl.classList.add('profit');
         if (summary.total_profit_loss < 0) profitLossEl.classList.add('loss');
     }
@@ -59,8 +71,7 @@ async function fetchHoldings() {
     const { holdings, summary } = result.data;
 
     latestSummary = summary;
-    document.getElementById('btc-price').textContent =
-        `BTC price: ${formatCurrency(summary.current_price)}`;
+    setHeroSub('btc-price', formatCurrency(summary.current_price));
 
     renderAssets(summary);
     renderHero();
@@ -78,40 +89,44 @@ function renderTransactions(holdings) {
     tbody.replaceChildren();
     document.getElementById('transactions-empty').classList.toggle('hidden', holdings.length > 0);
 
-    holdings.forEach(holding => {
+    holdings.forEach((holding, index) => {
         const row = document.createElement('tr');
-        const cells = [
-            'Bitcoin',
-            holding.id,
-            formatDate(holding.purchase_date),
-            formatBTC(holding.amount),
-            formatCurrency(holding.invested),
-            `${formatCurrency(holding.profit_loss)} ${formatPercent(holding.profit_loss_percent)}`
-        ];
-        cells.forEach(text => {
+        const addCell = (text, className) => {
             const td = document.createElement('td');
             td.textContent = text;
+            if (className) td.className = className;
             row.appendChild(td);
-        });
+            return td;
+        };
 
-        const profitLossCell = row.children[5];
+        const chipCell = addCell('', 'cell-chip');
+        const chip = document.createElement('span');
+        chip.className = 'stripe-chip';
+        chip.setAttribute('aria-hidden', 'true');
+        chip.style.background = `var(${STRIPES[index % STRIPES.length]})`;
+        chipCell.appendChild(chip);
+
+        addCell('Bitcoin', 'cell-coin');
+        addCell(holding.id, 'cell-id');
+        addCell(formatDate(holding.purchase_date));
+        addCell(formatBTC(holding.amount), 'num');
+        addCell(formatCurrency(holding.invested), 'num');
+        const profitLossCell = addCell(
+            `${formatSignedCurrency(holding.profit_loss)} ${formatPercent(holding.profit_loss_percent)}`, 'num');
         if (holding.profit_loss > 0) profitLossCell.classList.add('profit');
         if (holding.profit_loss < 0) profitLossCell.classList.add('loss');
 
-        const notesCell = document.createElement('td');
-        notesCell.className = 'notes-cell';
-        notesCell.textContent = holding.notes || '';
+        const notesCell = addCell(holding.notes || '', 'notes-cell');
         notesCell.title = holding.notes || '';
-        row.appendChild(notesCell);
 
-        const actionCell = document.createElement('td');
+        const actionCell = addCell('', 'cell-actions');
         const deleteButton = document.createElement('button');
         deleteButton.type = 'button';
-        deleteButton.className = 'delete-button';
-        deleteButton.textContent = 'Delete';
+        deleteButton.className = 'pill pill-icon delete-button';
+        deleteButton.setAttribute('aria-label', 'Delete transaction');
+        deleteButton.innerHTML = TRASH_ICON;  // constant markup, no user data
         deleteButton.addEventListener('click', () => deleteHolding(holding.id));
         actionCell.appendChild(deleteButton);
-        row.appendChild(actionCell);
 
         tbody.appendChild(row);
     });
@@ -155,7 +170,10 @@ function todayLocal() {
     return new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
 }
 
-function openPopup() {
+let popupTrigger = null;
+
+function openPopup(event) {
+    popupTrigger = event && event.currentTarget ? event.currentTarget : document.activeElement;
     investmentForm.reset();
     investmentForm.investment_date.value = todayLocal();
     investmentForm.investment_date.max = todayLocal();
@@ -165,7 +183,10 @@ function openPopup() {
 }
 
 function closePopup() {
+    if (popup.classList.contains('hidden')) return;
     popup.classList.add('hidden');
+    // Return focus to whatever opened the dialog
+    if (popupTrigger) popupTrigger.focus();
 }
 
 function updatePriceHint() {

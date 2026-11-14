@@ -64,4 +64,4 @@ def test_register_accepts_8_character_password(client):
 def test_register_form_matches_password_rule(client):
     page = client.get('/auth/register').data
     assert b'minlength="8"' in page
-    assert b'min 8 characters' in page
+    assert b'At least 8 characters' in page

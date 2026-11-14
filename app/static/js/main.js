@@ -18,9 +18,23 @@ function formatBTC(value) {
     return parseFloat(value).toFixed(8);
 }
 
-// Format a percentage, or nothing when unknown
+// Format money with an explicit sign (+$5.00 / −$5.00) so gains and losses
+// don't rely on colour alone
+function formatSignedCurrency(value) {
+    if (value === null || value === undefined) {
+        return '—';
+    }
+    const sign = value > 0 ? '+' : value < 0 ? '−' : '';
+    return sign + formatCurrency(Math.abs(value));
+}
+
+// Format a signed percentage, or nothing when unknown
 function formatPercent(value) {
-    return value === null || value === undefined ? '' : `(${value.toFixed(2)}%)`;
+    if (value === null || value === undefined) {
+        return '';
+    }
+    const sign = value > 0 ? '+' : value < 0 ? '−' : '';
+    return `(${sign}${Math.abs(value).toFixed(2)}%)`;
 }
 
 // Format a purchase date. Dates are stored in UTC, so display them in UTC
@@ -80,7 +94,7 @@ function showError(title, text) {
         alert(text ? `${title}\n${text}` : title);
         return;
     }
-    Swal.fire({ icon: 'error', title, text, confirmButtonColor: '#0088cc' });
+    Swal.fire({ icon: 'error', title, text });
 }
 
 async function confirmAction(title, confirmButtonText) {
@@ -92,7 +106,7 @@ async function confirmAction(title, confirmButtonText) {
         title,
         showCancelButton: true,
         confirmButtonText,
-        confirmButtonColor: '#c04848'
+        customClass: { confirmButton: 'swal-danger' }
     });
     return result.isConfirmed;
 }

@@ -2,16 +2,26 @@
 
 {% block title %}Register - Coinflow{% endblock %}
 
-{% block toggle %}
-<a href="{{ url_for('auth.login') }}" class="auth-toggle">Log In</a>
-{% endblock %}
-
 {% block form %}
 <form method="post" class="auth-form" data-loading="Creating your account...">
-    <h1>Sign Up</h1>
-    <input name="email" type="email" placeholder="Email" autocomplete="email" value="{{ request.form.get('email', '') }}" required autofocus>
-    <input name="username" placeholder="Username" autocomplete="username" value="{{ request.form.get('username', '') }}" required>
-    <input name="password" type="password" placeholder="Password (min 8 characters)" autocomplete="new-password" minlength="8" required>
+    <div class="auth-title-row">
+        <h1>Sign Up</h1>
+        <a href="{{ url_for('auth.login') }}" class="auth-toggle">Log In</a>
+    </div>
+    <label>
+        Email
+        <input name="email" type="email" autocomplete="email" value="{{ request.form.get('email', '') }}" required autofocus>
+    </label>
+    <label>
+        Username
+        <input name="username" autocomplete="username" value="{{ request.form.get('username', '') }}" required>
+    </label>
+    <label>
+        Password
+        <input name="password" type="password" autocomplete="new-password" minlength="8" required aria-describedby="password-hint">
+        <span class="field-hint" id="password-hint">At least 8 characters</span>
+    </label>
     <button type="submit">Sign Up</button>
+    <p class="auth-helper">Already have an account? <a href="{{ url_for('auth.login') }}">Log In</a></p>
 </form>
 {% endblock %}

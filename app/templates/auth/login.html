@@ -2,15 +2,21 @@
 
 {% block title %}Log In - Coinflow{% endblock %}
 
-{% block toggle %}
-<a href="{{ url_for('auth.register') }}" class="auth-toggle">Register</a>
-{% endblock %}
-
 {% block form %}
 <form method="post" class="auth-form" data-loading="Logging in...">
-    <h1>Log In</h1>
-    <input name="username" placeholder="Username" autocomplete="username" required autofocus>
-    <input name="password" type="password" placeholder="Password" autocomplete="current-password" required>
+    <div class="auth-title-row">
+        <h1>Log In</h1>
+        <a href="{{ url_for('auth.register') }}" class="auth-toggle">Register</a>
+    </div>
+    <label>
+        Username
+        <input name="username" autocomplete="username" value="{{ request.form.get('username', '') }}" required autofocus>
+    </label>
+    <label>
+        Password
+        <input name="password" type="password" autocomplete="current-password" required>
+    </label>
     <button type="submit">Log In</button>
+    <p class="auth-helper">New here? <a href="{{ url_for('auth.register') }}">Register</a></p>
 </form>
 {% endblock %}
