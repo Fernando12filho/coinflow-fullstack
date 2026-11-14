@@ -100,17 +100,30 @@ Pure Python, no Flask, all math in `Decimal`.
       Fixed on the way: "Add Transaction" wrapping in its keycap, and a hidden table-header label
       widening the page on phones. Deviations from the guide: password hint says 8 characters
       (F3), table alignment uses cell classes because of the extra Notes column, loading text on
-      the paper card uses `--ink-2` for contrast. Not yet run: an automated keyboard-only pass._
+      the paper card uses `--ink-2` for contrast. Keyboard focus handling is now covered by a browser test (Phase 4c)._
 
 ## Phase 4: Manual entry UI
 
-- [ ] Form supports Buy / Sell / Reward, fee, notes, and editing an existing trade
-- [ ] Transactions tab shows the real ledger: type, date, BTC, price/BTC, fee, running
+- [x] Form supports Buy / Sell / Reward, fee, notes, and editing an existing trade
+      _Done (4c): segmented Buy/Sell/Reward picker, fee in USD or BTC, edit button on every row.
+      Amounts go to the API exactly as typed. A refused change keeps the form open. Keyboard:
+      focus moves into the form and returns to whichever button opened it (closes the gap left
+      by the restyle)._
+- [x] Transactions tab shows the real ledger: type, date, BTC, price/BTC, fee, running
       break-even price, realized P&L
-- [ ] Dashboard shows break-even price, average cost, and realized and unrealized P&L
-- [ ] Cleanup once the UI uses `/api/trades`: remove the old `/api/bitcoin/holdings` and
+      _Done (4b): rows come from `/api/trades`, newest first, with signed BTC amounts. Delete uses
+      the new API; a delete that would break the history shows the server's explanation._
+- [x] Dashboard shows break-even price, average cost, and realized and unrealized P&L
+      _Done (4a): four paper stat tiles under the hero, fed by `/api/portfolio`. P&L tiles stay
+      masked until "Total" is shown. A negative break-even shows "Free". Browser tests added
+      (`tests/test_e2e_dashboard.py`, Playwright, skipped when no Chromium is available)._
+- [x] Cleanup once the UI uses `/api/trades`: remove the old `/api/bitcoin/holdings` and
       `/api/bitcoin/transactions` endpoints, and drop the now-unused `bitcoin_holding` and
       `transaction_history` tables
+      _Done (4d): old endpoints removed; schemas no longer create the old tables. On startup any
+      leftover holdings move into `trades`, then both old tables are dropped (checked on Postgres
+      16 and on a copy of the local database). README updated. 140 tests: 127 unit/API (pass on
+      SQLite and Postgres) + 13 browser tests._
 
 ## Phase 5: CSV import
 

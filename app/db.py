@@ -62,6 +62,15 @@ def get_db():
     return g.db
 
 
+def table_exists(db, name):
+    """True if the table exists in the current database (SQLite or Postgres)"""
+    if isinstance(db, PostgresDB):
+        return db.execute('SELECT to_regclass(?) AS name', (name,)).fetchone()['name'] is not None
+    return db.execute(
+        "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?", (name,)
+    ).fetchone() is not None
+
+
 def close_db(e=None):
     """Close database connection"""
     db = g.pop('db', None)

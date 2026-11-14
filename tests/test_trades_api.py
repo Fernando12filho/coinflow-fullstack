@@ -4,7 +4,7 @@ from datetime import date
 import pytest
 
 from app import bitcoin
-from app.db import create_tables, get_db
+from app.db import create_tables, get_db, table_exists
 from conftest import register, login
 
 
@@ -223,18 +223,37 @@ def test_empty_portfolio(logged_in):
 
 # ---------- Migration of old holdings ----------
 
-def test_old_holdings_move_into_trades(app, logged_in):
+LEGACY_HOLDING_TABLE = (
+    'CREATE TABLE bitcoin_holding (id INTEGER PRIMARY KEY, user_id INTEGER NOT NULL, '
+    'amount REAL NOT NULL, purchase_price REAL NOT NULL, purchase_date TIMESTAMP NOT NULL, notes TEXT)'
+)
+
+
+def test_legacy_tables_are_not_created(app):
+    with app.app_context():
+        db = get_db()
+        assert table_exists(db, 'trades')
+        assert not table_exists(db, 'bitcoin_holding')
+        assert not table_exists(db, 'transaction_history')
+
+
+def test_old_holdings_move_into_trades_and_old_tables_are_dropped(app, logged_in):
+    # A database from before Phase 3 still has the old tables
     with app.app_context():
         db = get_db()
         user_id = db.execute("SELECT id FROM users WHERE username = 'alice'").fetchone()['id']
+        db.execute(LEGACY_HOLDING_TABLE)
+        db.execute('CREATE TABLE transaction_history (id INTEGER PRIMARY KEY, user_id INTEGER NOT NULL)')
         db.execute(
-            'INSERT INTO bitcoin_holding (user_id, amount, purchase_price, purchase_date, notes) VALUES (?, ?, ?, ?, ?)',
-            (user_id, 0.005, 100000.0, '2024-03-15 00:00:00', 'old note'),
+            'INSERT INTO bitcoin_holding (id, user_id, amount, purchase_price, purchase_date, notes) '
+            'VALUES (?, ?, ?, ?, ?, ?)',
+            (1, user_id, 0.005, 100000.0, '2024-03-15 00:00:00', 'old note'),
         )
         db.commit()
         create_tables()   # runs on every app start
-        create_tables()   # running twice must not duplicate anything
-        assert db.execute('SELECT COUNT(*) AS n FROM bitcoin_holding').fetchone()['n'] == 0
+        create_tables()   # running twice must not duplicate anything or fail
+        assert not table_exists(db, 'bitcoin_holding')
+        assert not table_exists(db, 'transaction_history')
 
     trades = logged_in.get('/api/trades').get_json()['trades']
     assert len(trades) == 1
@@ -243,17 +262,17 @@ def test_old_holdings_move_into_trades(app, logged_in):
         'buy', '2024-03-15', '0.005', '500', 'old note', 'manual')
 
 
-# ---------- Old endpoints keep working on top of trades (until Phase 4) ----------
+# ---------- The old /api/bitcoin endpoints are gone (Phase 4 cleanup) ----------
 
-def test_old_holdings_endpoint_reads_trades(logged_in):
-    add(logged_in, btc='0.5', fiat='20000', notes='via new api')
-    holdings = logged_in.get('/api/bitcoin/holdings').get_json()
-    assert holdings['holdings'][0]['amount'] == 0.5
-    assert holdings['holdings'][0]['notes'] == 'via new api'
-    assert holdings['summary']['total_invested'] == 20000
+@pytest.mark.parametrize('method, url', [
+    ('get', '/api/bitcoin/holdings'),
+    ('post', '/api/bitcoin/holdings'),
+    ('delete', '/api/bitcoin/holdings/1'),
+    ('get', '/api/bitcoin/transactions'),
+])
+def test_old_endpoints_are_removed(logged_in, method, url):
+    assert getattr(logged_in, method)(url).status_code in (404, 405)
 
 
-def test_old_add_endpoint_writes_trades(logged_in):
-    logged_in.post('/api/bitcoin/holdings', json={'amount': 0.005, 'purchase_price': 500 / 0.005})
-    trade = logged_in.get('/api/trades').get_json()['trades'][0]
-    assert (trade['btc'], trade['fiat']) == ('0.005', '500')
+def test_price_endpoint_stays(client):
+    assert client.get('/api/bitcoin/price').get_json()['success'] is True

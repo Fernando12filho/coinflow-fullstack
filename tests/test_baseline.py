@@ -21,9 +21,9 @@ def test_register_requires_every_field(client, form, message):
 
 
 def test_logout_ends_the_session(logged_in):
-    assert logged_in.get('/api/bitcoin/holdings').status_code == 200
+    assert logged_in.get('/api/trades').status_code == 200
     assert logged_in.get('/auth/logout').headers['Location'] == '/'
-    assert logged_in.get('/api/bitcoin/holdings').status_code == 401
+    assert logged_in.get('/api/trades').status_code == 401
 
 
 def test_dashboard_page_for_logged_in_user(logged_in):
@@ -32,21 +32,8 @@ def test_dashboard_page_for_logged_in_user(logged_in):
     assert b'Add Transaction' in response.data
 
 
-def test_transactions_start_empty(logged_in):
-    assert logged_in.get('/api/bitcoin/transactions').get_json() == {
-        'success': True, 'transactions': [],
-    }
-
-
-def test_users_only_see_their_own_holdings(client):
-    register(client)
-    login(client)
-    client.post('/api/bitcoin/holdings', json={'amount': 1, 'purchase_price': 1000})
-    client.get('/auth/logout')
-
-    register(client, username='bob', email='bob@example.com')
-    login(client, username='bob')
-    assert client.get('/api/bitcoin/holdings').get_json()['holdings'] == []
+def test_trades_start_empty(logged_in):
+    assert logged_in.get('/api/trades').get_json() == {'success': True, 'trades': []}
 
 
 def test_newsletter_subscribe_requires_email(client):
@@ -99,9 +86,9 @@ def test_price_is_none_when_every_source_fails(app, monkeypatch):
 
 
 def test_init_db_command_resets_data(app, logged_in):
-    logged_in.post('/api/bitcoin/holdings', json={'amount': 1, 'purchase_price': 1000})
+    logged_in.post('/api/trades', json={'side': 'buy', 'btc': '1', 'fiat': '1000'})
     # The real `flask` CLI pushes an app context before running commands
     with app.app_context():
         result = app.test_cli_runner().invoke(args=['init-db'])
     assert 'Initialized the database.' in result.output
-    assert logged_in.get('/api/bitcoin/holdings').status_code == 401  # user is gone too
+    assert logged_in.get('/api/trades').status_code == 401  # user is gone too

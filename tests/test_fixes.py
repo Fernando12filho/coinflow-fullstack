@@ -4,7 +4,7 @@ from conftest import register, login
 
 
 def add(client, **extra):
-    return client.post('/api/bitcoin/holdings', json={'amount': 0.1, 'purchase_price': 30000, **extra})
+    return client.post('/api/trades', json={'side': 'buy', 'btc': '0.1', 'fiat': '3000', **extra})
 
 
 # F2: notes are reachable and validated
@@ -17,7 +17,7 @@ def test_dashboard_form_has_notes_field(logged_in):
 
 def test_notes_are_trimmed(logged_in):
     add(logged_in, notes='  bought on the dip  ')
-    assert logged_in.get('/api/bitcoin/holdings').get_json()['holdings'][0]['notes'] == 'bought on the dip'
+    assert logged_in.get('/api/trades').get_json()['trades'][0]['notes'] == 'bought on the dip'
 
 
 def test_notes_are_optional(logged_in):
