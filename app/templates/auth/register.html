@@ -11,7 +11,7 @@
     <h1>Sign Up</h1>
     <input name="email" type="email" placeholder="Email" autocomplete="email" value="{{ request.form.get('email', '') }}" required autofocus>
     <input name="username" placeholder="Username" autocomplete="username" value="{{ request.form.get('username', '') }}" required>
-    <input name="password" type="password" placeholder="Password (min 6 characters)" autocomplete="new-password" minlength="6" required>
+    <input name="password" type="password" placeholder="Password (min 8 characters)" autocomplete="new-password" minlength="8" required>
     <button type="submit">Sign Up</button>
 </form>
 {% endblock %}

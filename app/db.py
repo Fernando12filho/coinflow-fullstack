@@ -81,11 +81,15 @@ def create_tables():
     with current_app.open_resource(_schema_file()) as f:
         db.executescript(f.read().decode('utf8'))
 
+    from app.portfolio import migrate_legacy_holdings
+    migrate_legacy_holdings(db)
+
 
 def init_db():
     """Drop all tables and recreate them (destroys all data)"""
     db = get_db()
     db.executescript(
+        'DROP TABLE IF EXISTS trades;'
         'DROP TABLE IF EXISTS transaction_history;'
         'DROP TABLE IF EXISTS newsletter_subscription;'
         'DROP TABLE IF EXISTS bitcoin_holding;'

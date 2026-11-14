@@ -7,6 +7,8 @@ from app.db import get_db
 
 bp = Blueprint('auth', __name__, url_prefix='/auth')
 
+MIN_PASSWORD_LENGTH = 8
+
 
 @bp.route('/register', methods=('GET', 'POST'))
 def register():
@@ -24,8 +26,8 @@ def register():
             error = 'Email is required.'
         elif not password:
             error = 'Password is required.'
-        elif len(password) < 6:
-            error = 'Password must be at least 6 characters.'
+        elif len(password) < MIN_PASSWORD_LENGTH:
+            error = f'Password must be at least {MIN_PASSWORD_LENGTH} characters.'
 
         if error is None:
             try:
@@ -49,19 +51,18 @@ def register():
 def login():
     """Log in a registered user"""
     if request.method == 'POST':
-        username = request.form.get('username')
-        password = request.form.get('password')
+        username = request.form.get('username') or ''
+        password = request.form.get('password') or ''
         db = get_db()
         error = None
-        
+
         user = db.execute(
             'SELECT * FROM users WHERE username = ?', (username,)
         ).fetchone()
 
-        if user is None:
-            error = 'Incorrect username.'
-        elif not check_password_hash(user['password'], password):
-            error = 'Incorrect password.'
+        # One message for both cases so the form doesn't reveal which usernames exist
+        if user is None or not check_password_hash(user['password'], password):
+            error = 'Invalid username or password.'
 
         if error is None:
             session.clear()

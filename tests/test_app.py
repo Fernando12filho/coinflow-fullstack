@@ -1,39 +1,7 @@
-import os
 import pytest
 from app import create_app
 from app import bitcoin
-from app.db import init_db
-
-
-@pytest.fixture
-def app(tmp_path, monkeypatch):
-    monkeypatch.delenv('DATABASE_URL', raising=False)
-    monkeypatch.setattr(bitcoin, '_fetch_bitcoin_price', lambda: 50000.0)
-    bitcoin._price_cache.update(price=None, fetched_at=0.0)
-    # Set TEST_DATABASE_URL to run the suite against Postgres instead of SQLite
-    app = create_app({
-        'TESTING': True,
-        'DATABASE': str(tmp_path / 'test.sqlite'),
-        'DATABASE_URL': os.environ.get('TEST_DATABASE_URL'),
-    })
-    with app.app_context():
-        init_db()
-    return app
-
-
-@pytest.fixture
-def client(app):
-    return app.test_client()
-
-
-def register(client, username='alice', email='alice@example.com', password='secret1'):
-    return client.post('/auth/register', data={
-        'username': username, 'email': email, 'password': password,
-    })
-
-
-def login(client, username='alice', password='secret1'):
-    return client.post('/auth/login', data={'username': username, 'password': password})
+from conftest import register, login
 
 
 def test_home_page_sends_anonymous_user_to_login(client):
@@ -72,7 +40,7 @@ def test_duplicate_registration_is_rejected(client):
 def test_wrong_password(client):
     register(client)
     response = login(client, password='wrong-pass')
-    assert b'Incorrect password' in response.data
+    assert b'Invalid username or password.' in response.data
 
 
 def test_api_requires_login(client):
@@ -107,8 +75,8 @@ def test_holdings_profit_loss(client):
     assert client.delete(f'/api/bitcoin/holdings/{holding_id}').get_json()['success'] is True
     assert client.get('/api/bitcoin/holdings').get_json()['holdings'] == []
 
-    types = [t['type'] for t in client.get('/api/bitcoin/transactions').get_json()['transactions']]
-    assert sorted(types) == ['BUY', 'SELL']
+    # Deleting is a correction, not a sale: the entry disappears from the history entirely
+    assert client.get('/api/bitcoin/transactions').get_json()['transactions'] == []
 
 
 def test_invalid_holding(client):

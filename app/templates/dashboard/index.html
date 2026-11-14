@@ -64,6 +64,7 @@
                             <th>BTC Amount</th>
                             <th>Invested</th>
                             <th>Profit / Loss</th>
+                            <th>Notes</th>
                             <th></th>
                         </tr>
                     </thead>
@@ -95,6 +96,10 @@
             <label>
                 Investment Date
                 <input type="date" name="investment_date" required>
+            </label>
+            <label>
+                Notes (optional)
+                <textarea name="notes" rows="2" maxlength="500" placeholder="e.g. Monthly DCA buy"></textarea>
             </label>
             <p class="price-hint" id="price-per-btc"></p>
             <button type="submit">Submit</button>

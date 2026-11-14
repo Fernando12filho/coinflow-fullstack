@@ -54,6 +54,9 @@ def create_app(test_config=None):
     from . import dashboard
     app.register_blueprint(dashboard.bp)
 
+    from . import portfolio
+    app.register_blueprint(portfolio.bp)
+
     @app.context_processor
     def inject_current_year():
         return {'current_year': date.today().year}

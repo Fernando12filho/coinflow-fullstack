@@ -98,6 +98,12 @@ function renderTransactions(holdings) {
         if (holding.profit_loss > 0) profitLossCell.classList.add('profit');
         if (holding.profit_loss < 0) profitLossCell.classList.add('loss');
 
+        const notesCell = document.createElement('td');
+        notesCell.className = 'notes-cell';
+        notesCell.textContent = holding.notes || '';
+        notesCell.title = holding.notes || '';
+        row.appendChild(notesCell);
+
         const actionCell = document.createElement('td');
         const deleteButton = document.createElement('button');
         deleteButton.type = 'button';
@@ -183,7 +189,8 @@ investmentForm.addEventListener('submit', async function(e) {
         body: JSON.stringify({
             amount: btc,
             purchase_price: invested / btc,
-            purchase_date: investmentForm.investment_date.value
+            purchase_date: investmentForm.investment_date.value,
+            notes: investmentForm.notes.value
         })
     });
 
