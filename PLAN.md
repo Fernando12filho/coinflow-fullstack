@@ -158,12 +158,27 @@ Pure Python, no Flask, all math in `Decimal`.
 
 ## Phase 6: Price history + chart
 
-- [ ] `candles` table with daily BTC closes (we source the history ourselves)
-- [ ] Fill in missing days from Kraken's public OHLC API; keep the live price from
-      CoinGecko/Coinbase for "now"
-- [ ] Chart (lightweight-charts, saved inside the app for offline use): price line,
+- [x] `candles` table with daily BTC closes (we source the history ourselves)
+      _Done (6a): `app/prices.py`. History from Bitstamp's public OHLC API back to 2011-08-18
+      (1,000 days per request); each install downloads its own copy, nothing is bundled. Only
+      finished UTC days are stored. A failed sync keeps what's stored and waits 10 minutes
+      before retrying. Checked against the real API: 5,567 days in 3.6 s on first load._
+- [x] Fill in missing days automatically; keep the live price from CoinGecko/Coinbase for "now"
+      _Changed from the plan: Kraken's OHLC API ignores `since` and only returns the last ~720
+      days, so it can't provide history. Bitstamp is the source; Kraken is a fallback used only
+      when it covers the whole missing range (otherwise a permanent gap could appear)._
+- [x] Chart (lightweight-charts, saved inside the app for offline use): price line,
       break-even line, trade markers, ranges 1M/3M/1Y/3Y/5Y/ALL, buys/sells toggle
-- [ ] 24h price change on the dashboard
+      _Done (6b-c): `GET /api/bitcoin/history`; Lightweight Charts 5.2.1 vendored in
+      `app/static/vendor/` (unmodified, Apache-2.0, LICENSE + NOTICE included, TradingView
+      attribution logo and credit on the page). Break-even is a step line that moves at each
+      trade and extends to today; a negative break-even leaves a gap. "Show trades" toggles
+      the markers._
+- [x] Day price change on the dashboard
+      _Done (6d): "Today: +x%" in the hero, the live price against yesterday's close (00:00 UTC).
+      Labelled "today" rather than "24h": a rolling 24-hour change would need hourly prices._
+      _Tests: `tests/test_prices.py` (11), `tests/test_history_api.py` (6), `tests/test_e2e_chart.py`
+      (4 browser tests). 211 total; 189 non-browser tests pass on SQLite and Postgres 16._
 
 ## Phase 7: Settings
 

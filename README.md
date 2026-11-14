@@ -7,6 +7,7 @@ A full-stack Flask application for tracking Bitcoin: record buys, sells and rewa
 - 🔐 **User Authentication**: Secure registration and login system with password hashing
 - 📒 **Trade Ledger**: Record buys, sells and rewards (e.g. staking) with fees in USD or BTC, notes, and editing
 - 💹 **Break-even & P/L**: Break-even price, average cost, and realized / unrealized profit and loss, all with exact decimal math
+- 📈 **Price & Break-even Chart**: Daily BTC price since 2011 with your break-even line and every buy, sale and reward marked; 1M to ALL ranges
 - 📥 **CSV Import**: Bring in your history from Kraken (Ledgers export) or Coinbase (Transaction history). See a preview first; files and trades already imported are skipped, and every row that isn't imported is listed with the reason
 - 🛡️ **Consistent History**: Changes that would make your history impossible (e.g. selling BTC you didn't hold yet) are refused with a clear message
 - 📧 **Newsletter Subscription**: Stay updated with Bitcoin market insights
@@ -18,12 +19,14 @@ A full-stack Flask application for tracking Bitcoin: record buys, sells and rewa
 - Flask 3.1
 - PostgreSQL in production, SQLite for local development
 - Werkzeug (Password Hashing)
-- CoinGecko API, with Coinbase as a fallback (Bitcoin Prices)
+- CoinGecko API, with Coinbase as a fallback (live Bitcoin price)
+- Bitstamp public OHLC API, with Kraken as a fallback (daily price history)
 
 ### Frontend
 - HTML5
 - CSS3 (design tokens from `STYLE_GUIDE.md`, no web fonts)
 - Vanilla JavaScript (ES6+)
+- [TradingView Lightweight Charts™](https://www.tradingview.com/) 5.2.1, bundled in `app/static/vendor/` (Apache-2.0)
 - Responsive Design
 
 ## Installation
@@ -70,7 +73,8 @@ coinflow-fullstack/
 ├── app/
 │   ├── __init__.py          # Flask app factory
 │   ├── auth.py              # Authentication blueprint
-│   ├── bitcoin.py           # Live BTC price (CoinGecko, Coinbase fallback)
+│   ├── bitcoin.py           # Live BTC price (CoinGecko, Coinbase fallback) and /api/bitcoin/history
+│   ├── prices.py            # Daily price history: fetch (Bitstamp, Kraken fallback) and store
 │   ├── ledger.py            # Calculation engine: break-even, average cost, P/L (pure Python)
 │   ├── portfolio.py         # Trade storage and the /api/trades + /api/portfolio routes
 │   ├── imports.py           # /api/imports: preview, import and remove exchange CSV files
@@ -86,6 +90,7 @@ coinflow-fullstack/
 │   │   └── js/
 │   │       ├── main.js      # Shared helpers and popups (SweetAlert2)
 │   │       ├── dashboard.js # Portfolio: summary, stats, ledger, add/edit form
+│   │       ├── chart.js     # Price & break-even chart
 │   │       ├── import.js    # Import page: preview, import, imported files
 │   │       └── newsletter.js
 │   └── templates/
@@ -145,6 +150,7 @@ Only BTC bought, sold or earned in USD is imported for now. Deposits, withdrawal
 
 ### Bitcoin price
 - `GET /api/bitcoin/price` - Current Bitcoin price
+- `GET /api/bitcoin/history` - Daily closes since 2011 and today's change (requires auth). Missing finished days are fetched on request; the first request downloads the full history (a few seconds)
 
 ### Trades and portfolio (require auth)
 - `GET /api/trades` - All trades, newest first, with running break-even, average cost and realized P/L
@@ -197,6 +203,12 @@ API routes that require auth return `401` JSON when not logged in.
 - `filename`, `file_hash` - The uploaded file and its SHA-256 (the same file can't be imported twice)
 - `trade_count`, `date_from`, `date_to` - What the import added
 - `imported_at` - When it was imported
+
+### Candles Table
+- `currency`, `day` - Primary key (`USD`, `YYYY-MM-DD` in UTC)
+- `close` - Daily closing price, exact decimal stored as text
+
+Shared by all users. Only finished days are stored.
 
 Databases from older versions are migrated on startup: rows from the old `bitcoin_holding` table become buys in `trades`, and the old `bitcoin_holding` and `transaction_history` tables are dropped.
 
@@ -259,5 +271,6 @@ For issues and questions, please open an issue on the repository.
 
 ## Acknowledgments
 
-- Bitcoin price data provided by CoinGecko API
+- Live Bitcoin price from CoinGecko and Coinbase; daily history from Bitstamp and Kraken
+- Charts by TradingView Lightweight Charts™, © TradingView, Inc. ([tradingview.com](https://www.tradingview.com/))
 - Built with Flask and modern web technologies

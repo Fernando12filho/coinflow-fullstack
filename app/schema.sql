@@ -52,3 +52,11 @@ CREATE TABLE IF NOT EXISTS imports (
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_imports_user_file ON imports (user_id, file_hash);
+
+-- Daily BTC closing prices (UTC days), shared by all users. Filled from public price APIs.
+CREATE TABLE IF NOT EXISTS candles (
+  currency TEXT NOT NULL,
+  day TEXT NOT NULL,                        -- YYYY-MM-DD
+  close TEXT NOT NULL,                      -- exact decimal
+  PRIMARY KEY (currency, day)
+);

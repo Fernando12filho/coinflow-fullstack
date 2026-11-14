@@ -11,7 +11,10 @@ import threading
 import pytest
 from werkzeug.serving import make_server
 
-from app import bitcoin, create_app
+from datetime import datetime, timedelta, timezone
+from decimal import Decimal
+
+from app import bitcoin, create_app, prices
 
 sync_api = pytest.importorskip('playwright.sync_api')
 expect = sync_api.expect
@@ -41,12 +44,35 @@ def browser():
         b.close()
 
 
+HISTORY_DAYS = 400
+
+
+def utc_today():
+    return datetime.now(timezone.utc).date()
+
+
+def days_ago(n):
+    return (utc_today() - timedelta(days=n)).isoformat()
+
+
+def fake_closes(start, end):
+    """Fake price history: the last 400 finished days, rising $25 a day to $40,000 yesterday"""
+    first = max(start, end - timedelta(days=HISTORY_DAYS - 1))
+    out, day = [], first
+    while day <= end:
+        out.append((day, Decimal('40000') - 25 * (end - day).days))
+        day += timedelta(days=1)
+    return out
+
+
 @pytest.fixture
 def base_url(tmp_path, monkeypatch):
     """Run the app on a free local port with a fresh database"""
     monkeypatch.delenv('DATABASE_URL', raising=False)
     monkeypatch.setattr(bitcoin, '_fetch_bitcoin_price', lambda: 50000.0)
     bitcoin._price_cache.update(price=None, fetched_at=0.0)
+    prices._state['last_failure'] = 0.0
+    monkeypatch.setattr(prices, 'fetch_closes', fake_closes)
     app = create_app({'TESTING': True, 'DATABASE': str(tmp_path / 'e2e.sqlite')})
     server = make_server('127.0.0.1', 0, app, threaded=True)
     threading.Thread(target=server.serve_forever, daemon=True).start()

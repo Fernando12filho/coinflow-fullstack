@@ -128,6 +128,7 @@ async function fetchPortfolio() {
     }
     latestPortfolio = result.data.portfolio;
     setHeroSub('btc-price', formatCurrency(num(latestPortfolio.price)));
+    PriceChart.setLivePrice(num(latestPortfolio.price));
     renderAssets();
     renderHero();
 }
@@ -136,7 +137,25 @@ async function fetchTrades() {
     const result = await apiRequest('/api/trades');
     if (result.ok && result.data.success) {
         renderTransactions(result.data.trades);
+        PriceChart.setTrades(result.data.trades);
     }
+}
+
+// "Today: +2.31%": live price against yesterday's close (00:00 UTC)
+function renderDayChange(history) {
+    const el = document.getElementById('day-change');
+    const change = history ? history.day_change : null;
+    el.classList.remove('profit', 'loss');
+    if (!change) {
+        el.classList.add('hidden');
+        return;
+    }
+    const percent = num(change.percent);
+    const sign = percent > 0 ? '+' : percent < 0 ? '−' : '';
+    setHeroSub('day-change', `${sign}${Math.abs(percent).toFixed(2)}%`);
+    if (percent > 0) el.classList.add('profit');
+    if (percent < 0) el.classList.add('loss');
+    el.classList.remove('hidden');
 }
 
 function refresh() {
@@ -383,6 +402,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     refresh();
+    PriceChart.init(renderDayChange);
     // Refresh prices every 60 seconds
     setInterval(refresh, 60000);
 });
