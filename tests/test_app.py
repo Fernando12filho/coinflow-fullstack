@@ -259,3 +259,20 @@ def test_dashboard_has_the_price_chart(client):
     # Lightweight Charts licence: attribution notice + link to tradingview.com on the page
     assert 'href="https://www.tradingview.com/"' in html
     assert 'TradingView, Inc.' in html
+
+
+# ---------- User overrides to STYLE_GUIDE.md (see CLAUDE.md) ----------
+
+def test_no_stripe_band_under_the_header(client):
+    register(client)
+    login(client)
+    for url in ('/', '/newsletter', '/import'):
+        html = client.get(url).data.decode()
+        assert '</header>' in html, url
+        assert re.search(r'</header>\s*<div class="stripe-band', html) is None, url
+
+
+def test_hero_has_no_stripe_band(client):
+    html = pages(client)['dashboard']
+    hero = re.search(r'<section class="hero">(.*?)</section>', html, re.S).group(1)
+    assert 'stripe-band' not in hero

@@ -102,6 +102,16 @@ Pure Python, no Flask, all math in `Decimal`.
       (F3), table alignment uses cell classes because of the extra Notes column, loading text on
       the paper card uses `--ink-2` for contrast. Keyboard focus handling is now covered by a browser test (Phase 4c)._
 
+## UI adjustments (user request, 2026-11-14)
+
+- [x] Buttons are flat: no black border and no shadow (keycaps, pills, icon buttons, popups)
+- [x] Removed the stripe band under the app header and the one at the bottom of the
+      BTC / Total card
+      _Done: CSS + two template lines. Inputs keep their border (fields, not buttons). The
+      SweetAlert focus ring is now an outline instead of a shadow. Tests: markup checks in
+      `tests/test_app.py` and computed-style checks for every button type in
+      `tests/test_e2e_style.py`. Recorded as overrides to STYLE_GUIDE.md in CLAUDE.md._
+
 ## Phase 4: Manual entry UI
 
 - [x] Form supports Buy / Sell / Reward, fee, notes, and editing an existing trade
@@ -182,8 +192,12 @@ Pure Python, no Flask, all math in `Decimal`.
 
 ## Phase 7: Settings
 
-- [ ] Display currency: USD / EUR / GBP (trades in another currency converted using
-      BTC prices on the trade date)
+- [ ] Display currency: USD / EUR / GBP / **BRL** (Brazilian real, added 2026-11-14). Trades in
+      another currency converted at the exchange rate on the trade date.
+      _Research note: Bitstamp has no BTC/BRL market, so conversion uses daily USD exchange
+      rates instead of BTC cross-rates. Frankfurter (European Central Bank reference rates,
+      keyless, `https://api.frankfurter.dev/v1/`) has BRL, EUR and GBP back to 2011; weekends
+      and holidays have no rate, so use the previous business day. Checked 2026-11-14._
 - [ ] BTC or sats display
 - [ ] Locale-aware number and date formatting
 - [ ] Export the ledger to CSV

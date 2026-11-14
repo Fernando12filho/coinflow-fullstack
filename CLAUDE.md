@@ -39,6 +39,11 @@ Set `TEST_DATABASE_URL` to run the same suite against Postgres.
   `style.css`; no new colours, fonts or font weights outside it. New screens reuse `.window`,
   `.stripe-band`, paper cards, wells, `.pill` and `.btn-primary`. Every control needs a visible
   label or `aria-label` and must show the amber focus ring.
+- **Overrides to STYLE_GUIDE.md** (user request, 2026-11-14; these win over the guide):
+  - Buttons are flat: no border and no box-shadow on keycaps, pills, icon buttons or popup
+    buttons. Show pressed/active state with the background colour instead.
+  - No stripe band under the app header, and none at the bottom of the hero (BTC / Total)
+    card. Other stripe bands stay.
 
 ## satfolio
 
