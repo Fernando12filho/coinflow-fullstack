@@ -1,9 +1,7 @@
 import time
-from datetime import date, datetime, timedelta, timezone
 import requests
 from flask import Blueprint, current_app, jsonify, request, g
 from app.auth import login_required
-from app.db import get_db
 
 bp = Blueprint('bitcoin', __name__, url_prefix='/api/bitcoin')
 
@@ -57,71 +55,56 @@ def get_price():
     return jsonify({'success': False, 'error': 'Unable to fetch price'}), 500
 
 
-def _profit_loss(amount, invested, current_price):
-    """Return (current value, profit/loss, profit/loss %) or Nones if price is unknown"""
-    if not current_price:
-        return None, None, None
-    value = amount * current_price
-    profit_loss = value - invested
-    percent = (profit_loss / invested * 100) if invested > 0 else 0
-    return value, profit_loss, percent
+# ---------- Old holdings endpoints ----------
+# Kept so the current dashboard keeps working. They read and write the trades
+# ledger (app/portfolio.py) and are removed when the Phase 4 UI replaces them.
+
+def _float(value):
+    return float(value) if value is not None else None
 
 
 @bp.route('/holdings', methods=['GET'])
 @login_required
 def get_holdings():
-    """Get user's Bitcoin holdings"""
-    db = get_db()
-    holdings = db.execute(
-        'SELECT * FROM bitcoin_holding WHERE user_id = ? ORDER BY purchase_date DESC',
-        (g.user['id'],)
-    ).fetchall()
+    """Get user's Bitcoin holdings (buy trades) in the old response shape"""
+    from app.portfolio import current_price, load_rows, row_to_trade
+    from app.ledger import BUY, run_ledger, valuation
 
-    current_price = get_bitcoin_price()
+    rows = load_rows(g.user['id'])
+    _, position = run_ledger([row_to_trade(row) for row in rows])
+    price = current_price()
 
     holdings_list = []
-    total_amount = 0
-    total_invested = 0
-
-    for holding in holdings:
-        amount = holding['amount']
-        purchase_price = holding['purchase_price']
-        invested = amount * purchase_price
-
-        total_amount += amount
-        total_invested += invested
-
-        # Without a current price, value and profit/loss are unknown (None)
-        holding_current_value, profit_loss, profit_loss_percent = _profit_loss(
-            amount, invested, current_price
-        )
-
+    for row in reversed(rows):
+        trade = row_to_trade(row)
+        if trade.side != BUY:
+            continue
+        invested = trade.fiat + trade.fee_fiat
+        value = trade.btc * price if price is not None else None
+        profit_loss = value - invested if value is not None else None
         holdings_list.append({
-            'id': holding['id'],
-            'amount': amount,
-            'purchase_price': purchase_price,
-            'purchase_date': holding['purchase_date'],
-            'invested': invested,
-            'current_value': holding_current_value,
-            'profit_loss': profit_loss,
-            'profit_loss_percent': profit_loss_percent,
-            'notes': holding['notes']
+            'id': trade.id,
+            'amount': float(trade.btc),
+            'purchase_price': float(trade.price),
+            'purchase_date': trade.date,
+            'invested': float(invested),
+            'current_value': _float(value),
+            'profit_loss': _float(profit_loss),
+            'profit_loss_percent': _float(profit_loss / invested * 100) if profit_loss is not None else None,
+            'notes': row['notes'] or '',
         })
 
-    current_value, total_profit_loss, total_profit_loss_percent = _profit_loss(
-        total_amount, total_invested, current_price
-    )
-
+    v = valuation(position, price)
     return jsonify({
         'success': True,
         'holdings': holdings_list,
         'summary': {
-            'total_amount': total_amount,
-            'total_invested': total_invested,
-            'current_value': current_value,
-            'current_price': current_price,
-            'total_profit_loss': total_profit_loss,
-            'total_profit_loss_percent': total_profit_loss_percent
+            'total_amount': float(position.held),
+            'total_invested': float(position.invested),
+            'current_value': _float(v.value),
+            'current_price': _float(price),
+            'total_profit_loss': _float(v.total_pnl),
+            'total_profit_loss_percent': _float(v.total_pnl_percent) if v.total_pnl is not None else None,
         }
     })
 
@@ -129,100 +112,61 @@ def get_holdings():
 @bp.route('/holdings', methods=['POST'])
 @login_required
 def add_holding():
-    """Add a new Bitcoin holding"""
-    data = request.get_json(silent=True) or {}
+    """Add a buy trade from the old (amount, purchase_price) request shape"""
+    from decimal import Decimal, InvalidOperation
+    from app.portfolio import OUTPUT_PRECISION, save_trade
 
+    data = request.get_json(silent=True) or {}
     amount = data.get('amount')
     purchase_price = data.get('purchase_price')
-    notes = data.get('notes', '')
-    purchase_date = data.get('purchase_date')
 
     if not amount or not purchase_price:
         return jsonify({'success': False, 'error': 'Amount and purchase price are required'}), 400
-
     try:
-        amount = float(amount)
-        purchase_price = float(purchase_price)
-        
-        if amount <= 0 or purchase_price <= 0:
-            return jsonify({'success': False, 'error': 'Amount and price must be positive'}), 400
-    except (TypeError, ValueError):
+        btc = Decimal(str(amount))
+        fiat = (btc * Decimal(str(purchase_price))).quantize(OUTPUT_PRECISION)
+    except InvalidOperation:
         return jsonify({'success': False, 'error': 'Invalid number format'}), 400
 
-    if purchase_date:
-        try:
-            parsed_date = date.fromisoformat(purchase_date)
-        except (TypeError, ValueError):
-            return jsonify({'success': False, 'error': 'Invalid purchase date'}), 400
-        # Allow one day of slack for users in timezones ahead of the server
-        if parsed_date > date.today() + timedelta(days=1):
-            return jsonify({'success': False, 'error': 'Purchase date cannot be in the future'}), 400
-        purchase_date = datetime.combine(parsed_date, datetime.min.time())
-    else:
-        purchase_date = datetime.now(timezone.utc).replace(tzinfo=None, microsecond=0)
-
-    db = get_db()
-    holding_id = db.execute(
-        'INSERT INTO bitcoin_holding (user_id, amount, purchase_price, purchase_date, notes) '
-        'VALUES (?, ?, ?, ?, ?) RETURNING id',
-        (g.user['id'], amount, purchase_price, purchase_date.isoformat(' '), notes)
-    ).fetchone()['id']
-    
-    # Record transaction
-    db.execute(
-        'INSERT INTO transaction_history (user_id, transaction_type, amount, price, total_value) VALUES (?, ?, ?, ?, ?)',
-        (g.user['id'], 'BUY', amount, purchase_price, amount * purchase_price)
-    )
-    
-    db.commit()
-
-    return jsonify({'success': True, 'holding_id': holding_id})
+    status, payload = save_trade({
+        'side': 'buy',
+        'date': data.get('purchase_date'),
+        'btc': str(btc),
+        'fiat': str(fiat),
+        'notes': data.get('notes'),
+    })
+    if payload.get('success'):
+        payload = {'success': True, 'holding_id': payload['trade']['id']}
+    return jsonify(payload), 201 if status == 201 else status
 
 
 @bp.route('/holdings/<int:holding_id>', methods=['DELETE'])
 @login_required
 def delete_holding(holding_id):
-    """Delete a Bitcoin holding"""
-    db = get_db()
-    
-    # Verify ownership
-    holding = db.execute(
-        'SELECT * FROM bitcoin_holding WHERE id = ? AND user_id = ?',
-        (holding_id, g.user['id'])
-    ).fetchone()
+    """Delete a trade. Deleting corrects a mistaken entry; it is not a sale."""
+    from app.portfolio import remove_trade
 
-    if not holding:
-        return jsonify({'success': False, 'error': 'Holding not found'}), 404
-
-    # Record transaction
-    db.execute(
-        'INSERT INTO transaction_history (user_id, transaction_type, amount, price, total_value) VALUES (?, ?, ?, ?, ?)',
-        (g.user['id'], 'SELL', holding['amount'], holding['purchase_price'], holding['amount'] * holding['purchase_price'])
-    )
-    
-    db.execute('DELETE FROM bitcoin_holding WHERE id = ?', (holding_id,))
-    db.commit()
-
-    return jsonify({'success': True})
+    status, payload = remove_trade(holding_id)
+    if status == 404:
+        payload = {'success': False, 'error': 'Holding not found'}
+    return jsonify(payload), status
 
 
 @bp.route('/transactions', methods=['GET'])
 @login_required
 def get_transactions():
-    """Get user's transaction history"""
-    db = get_db()
-    transactions = db.execute(
-        'SELECT * FROM transaction_history WHERE user_id = ? ORDER BY transaction_date DESC LIMIT 50',
-        (g.user['id'],)
-    ).fetchall()
+    """User's trades, newest first, in the old transaction-history shape"""
+    from app.portfolio import load_rows, row_to_trade
 
-    transactions_list = [{
-        'id': t['id'],
-        'type': t['transaction_type'],
-        'amount': t['amount'],
-        'price': t['price'],
-        'total_value': t['total_value'],
-        'date': t['transaction_date']
-    } for t in transactions]
-
-    return jsonify({'success': True, 'transactions': transactions_list})
+    transactions_list = []
+    for row in reversed(load_rows(g.user['id'])):
+        trade = row_to_trade(row)
+        transactions_list.append({
+            'id': trade.id,
+            'type': trade.side.upper(),
+            'amount': float(trade.btc),
+            'price': float(trade.price),
+            'total_value': float(trade.fiat),
+            'date': trade.date,
+        })
+    return jsonify({'success': True, 'transactions': transactions_list[:50]})

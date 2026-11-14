@@ -4,36 +4,49 @@
 
 {% block body %}
 <div class="home-container">
-    {% include 'partials/app_header.html' %}
+    <div class="window">
+        {% include 'partials/app_header.html' %}
 
-    <section class="content-card card">
-        <p id="newsletter-loading" class="newsletter-status">Checking your subscription...</p>
+        <main class="app-main">
+            <section class="content-card paper-card">
+                <div class="paper-card-body">
+                    <p id="newsletter-loading" class="newsletter-status">Checking your subscription...</p>
 
-        <div id="newsletter-subscribed" class="newsletter-form hidden">
-            <h1>Subscribed</h1>
-            <p class="newsletter-status">You are subscribed with <strong id="subscribed-email"></strong></p>
-            <button type="button" id="unsubscribe-button" class="btn-blue">Unsubscribe</button>
-        </div>
+                    <div id="newsletter-subscribed" class="newsletter-form hidden">
+                        <h1>Subscribed</h1>
+                        <p class="newsletter-status">You are subscribed with <strong id="subscribed-email"></strong></p>
+                        <button type="button" id="unsubscribe-button" class="pill">Unsubscribe</button>
+                    </div>
 
-        <form id="newsletter-form" class="newsletter-form hidden">
-            <h1>Subscribe to our Newsletter</h1>
-            <input type="email" name="email" value="{{ g.user['email'] }}" placeholder="Enter your email" required>
-            <button type="submit" class="btn-blue">Subscribe</button>
-        </form>
-    </section>
+                    <form id="newsletter-form" class="newsletter-form hidden">
+                        <h1>Subscribe to our Newsletter</h1>
+                        <p class="newsletter-status">Market updates and Bitcoin insights, straight to your inbox.</p>
+                        <div class="newsletter-row">
+                            <label>
+                                Email
+                                <input type="email" name="email" value="{{ g.user['email'] }}" placeholder="you@example.com" required>
+                            </label>
+                            <button type="submit" class="btn-primary">Subscribe</button>
+                        </div>
+                    </form>
+                </div>
+                <div class="stripe-band stripe-band--thin" aria-hidden="true"></div>
+            </section>
 
-    <section class="content-card card">
-        <h1>Past Newsletters</h1>
-        <p class="placeholder-text">Nothing yet.</p>
-    </section>
+            <section class="content-card well">
+                <h1>Past Newsletters</h1>
+                <p class="placeholder-text"><span class="mini-stack" aria-hidden="true"></span>Nothing yet.</p>
+            </section>
 
-    <section class="content-card card">
-        <h1>Articles</h1>
-        <p class="placeholder-text">Nothing yet.</p>
-    </section>
+            <section class="content-card well">
+                <h1>Articles</h1>
+                <p class="placeholder-text"><span class="mini-stack" aria-hidden="true"></span>Nothing yet.</p>
+            </section>
+        </main>
+
+        {% include 'partials/footer.html' %}
+    </div>
 </div>
-
-{% include 'partials/footer.html' %}
 {% endblock %}
 
 {% block extra_js %}

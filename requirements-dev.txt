@@ -1,0 +1,6 @@
+# Development and test dependencies (not installed in production)
+-r requirements.txt
+pytest==8.4.2
+pytest-cov==7.0.0
+pytest-socket==0.7.0
+hypothesis==6.140.2
