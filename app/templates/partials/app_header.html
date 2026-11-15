@@ -15,6 +15,7 @@
         <span class="pill disabled-link" title="Coming soon" aria-disabled="true">Forum</span>
     </nav>
     <div class="username-logout">
+        {% if config.DESKTOP %}<a id="update-link" class="pill update-pill hidden" target="_blank" rel="noopener"></a>{% endif %}
         <span class="username">
             <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="5" r="2.75" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M2.75 14v-.75A3.25 3.25 0 0 1 6 10h4a3.25 3.25 0 0 1 3.25 3.25V14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
             {{ g.user['username'] }}

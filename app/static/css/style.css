@@ -228,6 +228,7 @@ img, svg { display: block; }
 .username-logout { display: flex; align-items: center; gap: 12px; }
 .username { display: inline-flex; align-items: center; gap: 6px; color: var(--text-2); }
 .logout-button { font-weight: normal; }
+.update-pill, .update-pill:hover { background: var(--amber); color: var(--ink); }
 
 /* Footer */
 .site-footer {

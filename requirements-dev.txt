@@ -5,3 +5,4 @@ pytest-cov==7.0.0
 pytest-socket==0.7.0
 hypothesis==6.140.2
 playwright==1.57.0
+pyyaml==6.0.3

@@ -222,10 +222,37 @@ Pure Python, no Flask, all math in `Decimal`.
 
 ## Phase 8: Installable desktop app
 
-- [ ] pywebview window + PyInstaller builds for macOS, Windows, Linux (GitHub Actions)
-- [ ] Database in the user's app-data folder
-- [ ] Local mode: decide whether to drop login and the newsletter (see open decisions)
-- [ ] Update check against GitHub Releases
+Decided 2026-11-15: the desktop app keeps login and the same pages as the website; the
+website on Render stays. macOS builds are signed and notarized when the Apple Developer ID
+certificate is added as GitHub secrets, unsigned otherwise. Windows/Linux builds are unsigned.
+
+- [x] **8.1 Desktop configuration** (`app/desktop.py`): database and a persistent secret key in
+      the user's app-data folder; the local server only answers requests addressed to
+      127.0.0.1/localhost and ignores proxy headers (protects against DNS rebinding)
+      _Done: secret key file is 0600; Flask TRUSTED_HOSTS; ProxyFix and the instance folder are
+      skipped in desktop mode (a mutation check confirmed the proxy-header test catches a regression)._
+- [x] **8.2 Launcher**: local server on a random free port + a native window (pywebview 6.2.1);
+      a headless smoke-test mode for builds and CI
+      _Done: `app/launcher.py` + `coinflow_desktop.py`. Downloads allowed (CSV export), external
+      links open in the browser, private window storage (log in each launch)._
+- [x] **8.3 Build** with PyInstaller 6.22.3: macOS `.app`, Windows `.exe`, Linux binary; verified
+      locally on macOS
+      _Done: `coinflow.spec`, `packaging/` (icon from the logo, hardened-runtime entitlements),
+      `app/version.py` (1.0.0). Local build: 14 s, 30 MB, arm64, minimum macOS 11.0, smoke test
+      passes, nothing written inside the bundle, HTTPS certificates bundled._
+- [x] **8.4 GitHub Actions**: build and smoke-test on macOS, Windows and Linux; publish a GitHub
+      Release with checksums on a version tag; sign + notarize on macOS when secrets exist
+      _Done: `.github/workflows/desktop.yml` (macos-15, macos-15-intel, windows-latest,
+      ubuntu-24.04) + `RELEASING.md` (secrets walkthrough). Static checks in
+      `tests/test_release_workflow.py`. Linux build is experimental (needs GTK/WebKit; built on
+      Ubuntu 24.04 so it needs a recent distribution)
+      CI verified 2026-11-15 (run 43716081673, PR #1): tests + all four builds and their smoke
+      tests pass; the first run caught that Windows has no `shasum` (checksums now use Python).
+      The downloaded macOS arm64 .dmg verified against its checksum and passed the smoke test.
+      Signing/notarizing still to verify once the Apple secrets are added._
+- [x] **8.5 Update check** against GitHub Releases, shown in the app header
+      _Done: `app/updates.py`, `GET /api/updates`; desktop only, at most every 6 hours, generic
+      User-Agent, silent when offline, only github.com links. 307 tests in total._
 
 ---
 
@@ -234,6 +261,7 @@ Pure Python, no Flask, all math in `Decimal`.
 | Decision | Status |
 |---|---|
 | Break-even method | **Default chosen:** show both break-even price (satfolio style) and average cost |
-| Keep login, or go desktop-only? | **Open.** Login stays for now; decide at Phase 8 |
+| Keep login, or go desktop-only? | **Keep login on desktop too**; website stays on Render (user, 2026-11-15) |
+| Code signing | macOS signed + notarized via GitHub secrets when the Apple Developer ID certificate is added; unsigned until then (user, 2026-11-15) |
 | Phase order | Fixes first, then features in the order above (user, 2026-11-14) |
 | Copying satfolio code | **No.** AGPL-3.0; re-implement features only |

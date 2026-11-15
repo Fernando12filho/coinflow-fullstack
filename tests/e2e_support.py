@@ -14,7 +14,7 @@ from werkzeug.serving import make_server
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 
-from app import bitcoin, create_app, fx, prices
+from app import bitcoin, create_app, fx, prices, updates
 
 sync_api = pytest.importorskip('playwright.sync_api')
 expect = sync_api.expect
@@ -82,6 +82,7 @@ def base_url(tmp_path, monkeypatch):
     bitcoin._price_cache.update(price=None, fetched_at=0.0)
     prices._state['last_failure'] = 0.0
     fx.reset_state()
+    updates.reset_cache()
     monkeypatch.setattr(prices, 'fetch_closes', fake_closes)
     monkeypatch.setattr(fx, 'RATES_START', utc_today() - timedelta(days=1200))
     monkeypatch.setattr(fx, 'fetch_rates', fake_rates)
