@@ -30,6 +30,14 @@ def test_runs_on_version_tags_and_by_hand(workflow):
     assert 'workflow_dispatch' in workflow['on']
 
 
+def test_pull_requests_that_touch_the_desktop_app_are_built(workflow):
+    paths = workflow['on']['pull_request']['paths']
+    for path in ('coinflow.spec', 'app/desktop.py', 'app/launcher.py', '.github/workflows/desktop.yml'):
+        assert path in paths, path
+    # Pull requests never publish: the release job only runs for tags
+    assert "startsWith(github.ref, 'refs/tags/v')" in workflow['jobs']['release']['if']
+
+
 def test_tests_run_before_building(workflow):
     assert workflow['jobs']['build']['needs'] == 'test'
     assert 'pytest' in steps_text(workflow['jobs']['test'])
