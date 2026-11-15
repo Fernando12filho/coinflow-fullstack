@@ -245,7 +245,11 @@ certificate is added as GitHub secrets, unsigned otherwise. Windows/Linux builds
       _Done: `.github/workflows/desktop.yml` (macos-15, macos-15-intel, windows-latest,
       ubuntu-24.04) + `RELEASING.md` (secrets walkthrough). Static checks in
       `tests/test_release_workflow.py`. Linux build is experimental (needs GTK/WebKit; built on
-      Ubuntu 24.04 so it needs a recent distribution)._
+      Ubuntu 24.04 so it needs a recent distribution)
+      CI verified 2026-11-15 (run 43716081673, PR #1): tests + all four builds and their smoke
+      tests pass; the first run caught that Windows has no `shasum` (checksums now use Python).
+      The downloaded macOS arm64 .dmg verified against its checksum and passed the smoke test.
+      Signing/notarizing still to verify once the Apple secrets are added._
 - [x] **8.5 Update check** against GitHub Releases, shown in the app header
       _Done: `app/updates.py`, `GET /api/updates`; desktop only, at most every 6 hours, generic
       User-Agent, silent when offline, only github.com links. 307 tests in total._
