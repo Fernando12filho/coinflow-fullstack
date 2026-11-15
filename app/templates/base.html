@@ -10,6 +10,7 @@
 <body>
     {% block body %}{% endblock %}
 
+    {% if user_settings %}<script id="user-settings" type="application/json">{{ user_settings | tojson }}</script>{% endif %}
     <script id="flash-data" type="application/json">{{ get_flashed_messages(with_categories=true) | tojson }}</script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.all.min.js"></script>
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>

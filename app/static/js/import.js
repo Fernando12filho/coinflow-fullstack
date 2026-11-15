@@ -52,7 +52,7 @@ function renderPreview(p) {
     if (p.already_imported) {
         problem = 'This file was already imported. Remove it below first if you want to import it again.';
     } else if (p.trades === 0) {
-        problem = 'No BTC trades in USD were found in this file.';
+        problem = 'No BTC trades in USD, EUR, GBP or BRL were found in this file.';
     } else if (p.new === 0) {
         problem = 'Every trade in this file is already in CoinFlow.';
     } else if (p.problem) {

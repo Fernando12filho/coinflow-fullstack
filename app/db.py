@@ -98,6 +98,8 @@ def init_db():
     """Drop all tables and recreate them (destroys all data)"""
     db = get_db()
     db.executescript(
+        'DROP TABLE IF EXISTS user_settings;'
+        'DROP TABLE IF EXISTS fx_rates;'
         'DROP TABLE IF EXISTS candles;'
         'DROP TABLE IF EXISTS imports;'
         'DROP TABLE IF EXISTS trades;'

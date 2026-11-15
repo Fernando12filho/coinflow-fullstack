@@ -11,7 +11,7 @@ For buys and sales, `Subtotal` is the value of the BTC before fees and
 """
 from decimal import Decimal
 
-from app.importers import ImportedTrade, ParsedFile, SkippedRow, find_header, stable_hash
+from app.importers import CURRENCIES, CURRENCIES_TEXT, ImportedTrade, ParsedFile, SkippedRow, find_header, stable_hash
 from app.importers.common import to_datetime, to_decimal
 from app.ledger import BTC, BUY, REWARD, SELL, Trade
 
@@ -87,7 +87,8 @@ def parse(rows):
                 fiat = quantity * price
             fee = abs(amount(fee_col) or ZERO)
             side = BUY if kind in BUY_TYPES else SELL
-            trade = Trade(side, date, quantity, abs(fiat), fee=fee, fee_asset='USD', currency='USD')
+            currency = cell(currency_col).upper() or 'USD'
+            trade = Trade(side, date, quantity, abs(fiat), fee=fee, fee_asset=currency, currency=currency)
 
         row_id = cell(id_col)
         trade_hash = (stable_hash('coinbase', row_id) if row_id else
@@ -112,8 +113,8 @@ def _skip_reason(kind, asset, currency):
         return None
     if lowered not in BUY_TYPES | SELL_TYPES:
         return f'"{kind}" is not a buy, sale or reward'
-    if currency and currency != 'USD':
-        return f'Priced in {currency}: only USD is supported for now'
+    if currency and currency not in CURRENCIES:
+        return f'Priced in {currency}: only {CURRENCIES_TEXT} are supported'
     return None
 
 

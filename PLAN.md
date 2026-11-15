@@ -192,16 +192,33 @@ Pure Python, no Flask, all math in `Decimal`.
 
 ## Phase 7: Settings
 
-- [ ] Display currency: USD / EUR / GBP / **BRL** (Brazilian real, added 2026-11-14). Trades in
+- [x] Display currency: USD / EUR / GBP / **BRL** (Brazilian real, added 2026-11-14). Trades in
       another currency converted at the exchange rate on the trade date.
-      _Research note: Bitstamp has no BTC/BRL market, so conversion uses daily USD exchange
-      rates instead of BTC cross-rates. Frankfurter (European Central Bank reference rates,
-      keyless, `https://api.frankfurter.dev/v1/`) has BRL, EUR and GBP back to 2011; weekends
-      and holidays have no rate, so use the previous business day. Checked 2026-11-14._
-- [ ] BTC or sats display
-- [ ] Locale-aware number and date formatting
-- [ ] Export the ledger to CSV
-- [ ] Delete all data
+      _Done (7.1 + 7.3): `app/fx.py` + `fx_rates` table: ECB reference rates via Frankfurter
+      (`https://api.frankfurter.dev/v1/`), one request for every business day since 2010; weekends
+      use the previous business day (up to 10 days back), missing rates are refused, not guessed.
+      Trades stay stored in their own currency; `/api/trades`, `/api/portfolio` and
+      `/api/bitcoin/history` convert each trade at its date's rate and the live price at today's.
+      New trades are entered in the display currency; edits keep the trade's own currency (the form
+      shows the original amounts, labelled by code when it differs). The BTC balance check ignores
+      currency, so saving works without rates; showing converted amounts without rates returns 503
+      with an explanation. Checked against the real APIs (2011-08-18: $10.90 x 1.5976 = R$17.41)._
+- [x] BTC or sats display
+- [x] Locale-aware number and date formatting
+      _Done (7.2 + 7.4): `app/settings.py` + `user_settings` table, `GET/PUT /api/settings`, Settings
+      page (header link). Settings are embedded in each page; `main.js` formats money, BTC/sats,
+      percentages and dates with them (Automatic = the browser's language)._
+- [x] Imports keep EUR / GBP / BRL trades (7.5): Kraken and Coinbase BTC trades in any supported
+      currency are imported in that currency; others are skipped with the reason.
+- [x] Export the ledger to CSV
+      _Done (7.6): `GET /api/trades/export`, oldest first, original amounts and currency; cells that
+      would start a spreadsheet formula get a leading apostrophe._
+- [x] Delete all data
+      _Done (7.7): `POST /api/account/delete-data` with `{"confirm": "DELETE"}`: removes trades,
+      imports and settings, keeps the account. "Your data" section on the Settings page._
+      _Tests: test_fx (9), test_settings (12), test_currency_api (12), test_data_api (10),
+      test_e2e_settings (5) plus updated import tests. 264 total; 236 non-browser tests pass on
+      SQLite and Postgres 16._
 
 ## Phase 8: Installable desktop app
 

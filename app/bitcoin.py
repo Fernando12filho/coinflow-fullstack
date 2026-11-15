@@ -1,6 +1,6 @@
 import time
 import requests
-from flask import Blueprint, current_app, jsonify
+from flask import Blueprint, current_app, g, jsonify
 from app.auth import login_required
 
 bp = Blueprint('bitcoin', __name__, url_prefix='/api/bitcoin')
@@ -58,28 +58,40 @@ def get_price():
 @bp.route('/history', methods=['GET'])
 @login_required
 def get_history():
-    """Daily closes (topping up any finished days not stored yet) and the change since the last close"""
+    """Daily closes in the display currency (topping up any finished days not stored
+    yet) and the change since the last close"""
     from datetime import datetime, timedelta, timezone
     from decimal import Decimal
-    from app import prices
+    from app import fx, prices
     from app.db import get_db
-    from app.portfolio import fmt
+    from app.portfolio import CURRENCY, display_currency, fmt, fx_unavailable
 
     db = get_db()
     up_to_date = prices.sync(db)
     closes = prices.load_closes(db)
+    currency = display_currency(g.user['id'])
+    live = get_bitcoin_price()
+    live = Decimal(str(live)) if live else None
+    today = datetime.now(timezone.utc).date()
+
+    if currency != CURRENCY and closes:
+        fx.sync(db)
+        converter = fx.load_converter(db)
+        try:
+            closes = [(day, converter.convert(close, CURRENCY, currency, day)) for day, close in closes]
+            live = converter.convert(live, CURRENCY, currency, today) if live else None
+        except fx.RateUnavailable:
+            return fx_unavailable(currency)
 
     day_change = None
-    live = get_bitcoin_price()
-    yesterday = datetime.now(timezone.utc).date() - timedelta(days=1)
-    if live and closes and closes[-1][0] == yesterday and closes[-1][1] > 0:
+    if live and closes and closes[-1][0] == today - timedelta(days=1) and closes[-1][1] > 0:
         last_day, last_close = closes[-1]
-        percent = (Decimal(str(live)) - last_close) / last_close * 100
+        percent = (live - last_close) / last_close * 100
         day_change = {'since': last_day.isoformat(), 'close': fmt(last_close), 'percent': fmt(percent)}
 
     return jsonify({
         'success': True,
-        'currency': prices.CURRENCY,
+        'currency': currency,
         'up_to_date': up_to_date,
         'closes': [{'date': day.isoformat(), 'close': fmt(close)} for day, close in closes],
         'day_change': day_change,

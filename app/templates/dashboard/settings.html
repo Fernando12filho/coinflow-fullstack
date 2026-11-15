@@ -1,0 +1,79 @@
+{% extends 'base.html' %}
+
+{% block title %}Settings - Coinflow{% endblock %}
+
+{% block body %}
+<div class="home-container">
+    <div class="window">
+        {% include 'partials/app_header.html' %}
+
+        <main class="app-main">
+            <section class="content-card paper-card">
+                <div class="paper-card-body">
+                    <h1>Settings</h1>
+                    <p class="newsletter-status">How amounts are shown. Your trades are always stored exactly as entered, in their own currency.</p>
+
+                    <form id="settings-form" class="settings-form">
+                        <label>
+                            Display currency
+                            <select name="currency">
+                                {% for code in options.currencies %}
+                                <option value="{{ code }}"{% if code == settings.currency %} selected{% endif %}>{{ options.currency_labels[code] }}</option>
+                                {% endfor %}
+                            </select>
+                            <span class="field-hint">New trades are entered in this currency. Trades in other currencies are converted at the exchange rate on their date.</span>
+                        </label>
+
+                        <fieldset class="side-picker">
+                            <legend>Bitcoin amounts</legend>
+                            <div class="segmented">
+                                {% for unit in options.btc_units %}
+                                <label><input type="radio" name="btc_unit" value="{{ unit }}"{% if unit == settings.btc_unit %} checked{% endif %}><span>{{ unit }}</span></label>
+                                {% endfor %}
+                            </div>
+                        </fieldset>
+
+                        <label>
+                            Number format
+                            <select name="locale">
+                                {% for locale in options.locales %}
+                                <option value="{{ locale.code }}"{% if locale.code == settings.locale %} selected{% endif %}>{{ locale.label }}</option>
+                                {% endfor %}
+                            </select>
+                        </label>
+
+                        <button type="submit" class="btn-primary">Save settings</button>
+                    </form>
+                </div>
+                <div class="stripe-band stripe-band--thin" aria-hidden="true"></div>
+            </section>
+
+            <section class="content-card well">
+                <h1>Your data</h1>
+                <div class="data-actions">
+                    <div class="data-action">
+                        <h2>Export</h2>
+                        <p>Download every trade as a CSV file, with the amounts and currency each trade was entered in.</p>
+                        <a id="export-link" class="pill" href="{{ url_for('portfolio.export_trades') }}" download>Download CSV</a>
+                    </div>
+                    <form id="delete-data-form" class="data-action danger-zone">
+                        <h2>Delete all data</h2>
+                        <p>Removes all your trades, imported files and settings. Your account stays. This can't be undone, so export first if you might want them back.</p>
+                        <label>
+                            Type DELETE to confirm
+                            <input name="confirm" autocomplete="off" required>
+                        </label>
+                        <button type="submit" class="btn-danger">Delete all data</button>
+                    </form>
+                </div>
+            </section>
+        </main>
+
+        {% include 'partials/footer.html' %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/settings.js') }}"></script>
+{% endblock %}

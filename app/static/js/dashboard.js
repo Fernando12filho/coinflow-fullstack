@@ -127,6 +127,7 @@ async function fetchPortfolio() {
         return;
     }
     latestPortfolio = result.data.portfolio;
+    displayCurrency = latestPortfolio.currency;
     setHeroSub('btc-price', formatCurrency(num(latestPortfolio.price)));
     PriceChart.setLivePrice(num(latestPortfolio.price));
     renderAssets();
@@ -170,10 +171,15 @@ function formatBreakEven(value) {
     return value < 0 ? 'Free' : formatCurrency(value);
 }
 
+// BTC fees: exactly as stored in BTC mode (e.g. 0.0001 BTC), whole sats otherwise
+function formatBTCFee(fee) {
+    return USER_SETTINGS.btc_unit === 'sats' ? formatBTC(fee) : `${fee} BTC`;
+}
+
 function formatFee(trade) {
     if (num(trade.fee) === 0) return '—';
     // BTC fees are shown exactly as stored (e.g. 0.0001 BTC)
-    return trade.fee_asset === 'BTC' ? `${trade.fee} BTC` : formatCurrency(num(trade.fee));
+    return trade.fee_asset === 'BTC' ? formatBTCFee(trade.fee) : formatCurrency(num(trade.fee));
 }
 
 function renderTransactions(trades) {
@@ -275,6 +281,7 @@ const tradeForm = document.getElementById('trade-form');
 const fiatField = document.getElementById('fiat-field');
 let popupTrigger = null;
 let editingId = null;  // id of the trade being edited, or null when adding
+let formCurrency = null;  // currency the form's amounts are in
 
 function todayLocal() {
     const now = new Date();
@@ -291,8 +298,13 @@ function updateSideFields() {
     const isReward = side === 'reward';
     fiatField.classList.toggle('hidden', isReward);
     tradeForm.fiat.disabled = isReward;
+    // A trade in another currency shows its code ("USD") so it can't be mistaken for the display currency
+    const currency = formCurrency || displayCurrency;
+    const symbol = currency === displayCurrency ? currencySymbol(currency) : currency;
     document.getElementById('fiat-label').textContent =
-        side === 'sell' ? 'Amount received ($)' : 'Amount paid ($)';
+        side === 'sell' ? `Amount received (${symbol})` : `Amount paid (${symbol})`;
+    tradeForm.fee_asset.options[0].textContent = formCurrency || displayCurrency;
+    tradeForm.fee_asset.options[0].value = formCurrency || displayCurrency;
     updatePriceHint();
 }
 
@@ -300,12 +312,15 @@ function updatePriceHint() {
     const fiat = parseFloat(tradeForm.fiat.value);
     const btc = parseFloat(tradeForm.btc.value);
     document.getElementById('price-per-btc').textContent =
-        selectedSide() !== 'reward' && fiat > 0 && btc > 0 ? `Price per BTC: ${formatCurrency(fiat / btc)}` : '';
+        selectedSide() !== 'reward' && fiat > 0 && btc > 0
+            ? `Price per BTC: ${formatCurrency(fiat / btc, formCurrency || displayCurrency)}` : '';
 }
 
 function openPopup(event, trade = null) {
     popupTrigger = event && event.currentTarget ? event.currentTarget : document.activeElement;
     editingId = trade ? trade.id : null;
+    // New trades are entered in the display currency; edits show the trade's own amounts
+    formCurrency = trade ? trade.trade_currency : displayCurrency;
     tradeForm.reset();
     document.getElementById('popup-title').textContent = trade ? 'Edit Transaction' : 'Add Transaction';
     document.getElementById('trade-submit').textContent = trade ? 'Save changes' : 'Save';
@@ -316,10 +331,10 @@ function openPopup(event, trade = null) {
         tradeForm.querySelector(`input[name="side"][value="${trade.side}"]`).checked = true;
         tradeForm.date.value = trade.date;
         tradeForm.btc.value = trade.btc;
-        if (trade.side !== 'reward') tradeForm.fiat.value = trade.fiat;
-        if (num(trade.fee) > 0) {
-            tradeForm.fee.value = trade.fee;
-            tradeForm.fee_asset.value = trade.fee_asset;
+        if (trade.side !== 'reward') tradeForm.fiat.value = trade.trade_fiat;
+        if (num(trade.trade_fee) > 0) {
+            tradeForm.fee.value = trade.trade_fee;
+            tradeForm.fee_asset.value = trade.fee_asset === 'BTC' ? 'BTC' : trade.trade_currency;
         }
         tradeForm.notes.value = trade.notes || '';
     }
@@ -350,7 +365,8 @@ tradeForm.addEventListener('submit', async function(e) {
         side,
         date: tradeForm.date.value,
         btc: tradeForm.btc.value,
-        notes: tradeForm.notes.value
+        notes: tradeForm.notes.value,
+        currency: formCurrency
     };
     if (side !== 'reward') body.fiat = tradeForm.fiat.value;
     if (tradeForm.fee.value !== '') {

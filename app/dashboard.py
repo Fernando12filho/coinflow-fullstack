@@ -31,3 +31,11 @@ def newsletter():
 def import_page():
     """Import transactions from exchange CSV exports"""
     return render_template('dashboard/import.html')
+
+
+@bp.route('/settings')
+@login_required
+def settings_page():
+    """Display settings"""
+    from app.settings import get_settings, options
+    return render_template('dashboard/settings.html', settings=get_settings(g.user['id']), options=options())

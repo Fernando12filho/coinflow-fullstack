@@ -8,6 +8,7 @@ A full-stack Flask application for tracking Bitcoin: record buys, sells and rewa
 - 📒 **Trade Ledger**: Record buys, sells and rewards (e.g. staking) with fees in USD or BTC, notes, and editing
 - 💹 **Break-even & P/L**: Break-even price, average cost, and realized / unrealized profit and loss, all with exact decimal math
 - 📈 **Price & Break-even Chart**: Daily BTC price since 2011 with your break-even line and every buy, sale and reward marked; 1M to ALL ranges
+- ⚙️ **Settings**: Show amounts in USD, EUR, GBP or BRL (each trade converted at the exchange rate on its date), BTC or sats, and your number format. Export everything to CSV, or delete all your data
 - 📥 **CSV Import**: Bring in your history from Kraken (Ledgers export) or Coinbase (Transaction history). See a preview first; files and trades already imported are skipped, and every row that isn't imported is listed with the reason
 - 🛡️ **Consistent History**: Changes that would make your history impossible (e.g. selling BTC you didn't hold yet) are refused with a clear message
 - 📧 **Newsletter Subscription**: Stay updated with Bitcoin market insights
@@ -21,6 +22,7 @@ A full-stack Flask application for tracking Bitcoin: record buys, sells and rewa
 - Werkzeug (Password Hashing)
 - CoinGecko API, with Coinbase as a fallback (live Bitcoin price)
 - Bitstamp public OHLC API, with Kraken as a fallback (daily price history)
+- European Central Bank reference rates via Frankfurter (daily USD → EUR / GBP / BRL)
 
 ### Frontend
 - HTML5
@@ -75,6 +77,9 @@ coinflow-fullstack/
 │   ├── auth.py              # Authentication blueprint
 │   ├── bitcoin.py           # Live BTC price (CoinGecko, Coinbase fallback) and /api/bitcoin/history
 │   ├── prices.py            # Daily price history: fetch (Bitstamp, Kraken fallback) and store
+│   ├── fx.py                # Daily exchange rates (ECB via Frankfurter) and currency conversion
+│   ├── settings.py          # Per-user settings: currency, BTC/sats, number format
+│   ├── account.py           # Delete all of a user's data
 │   ├── ledger.py            # Calculation engine: break-even, average cost, P/L (pure Python)
 │   ├── portfolio.py         # Trade storage and the /api/trades + /api/portfolio routes
 │   ├── imports.py           # /api/imports: preview, import and remove exchange CSV files
@@ -92,12 +97,13 @@ coinflow-fullstack/
 │   │       ├── dashboard.js # Portfolio: summary, stats, ledger, add/edit form
 │   │       ├── chart.js     # Price & break-even chart
 │   │       ├── import.js    # Import page: preview, import, imported files
+│   │       ├── settings.js  # Settings page: save settings, delete data
 │   │       └── newsletter.js
 │   └── templates/
 │       ├── base.html
 │       ├── partials/        # App header and footer
 │       ├── auth/            # Login and register (shared layout)
-│       └── dashboard/       # Portfolio, import and newsletter pages
+│       └── dashboard/       # Portfolio, import, settings and newsletter pages
 ├── tests/                   # Pytest suite (unit, API and browser tests)
 ├── PLAN.md                  # Roadmap and progress
 ├── CLAUDE.md                # How we work on this repo
@@ -132,7 +138,14 @@ coinflow-fullstack/
 3. Check the preview: trades found, what's new, the date range, and any skipped rows with the reason
 4. Click **Import**. Each imported file is listed below and can be removed with its trades
 
-Only BTC bought, sold or earned in USD is imported for now. Deposits, withdrawals and transfers are skipped: moving your own BTC doesn't change what you paid for it.
+Only BTC bought, sold or earned in USD, EUR, GBP or BRL is imported, each trade in its own currency. Deposits, withdrawals and transfers are skipped: moving your own BTC doesn't change what you paid for it.
+
+### Settings
+1. Open **Settings** in the header
+2. Choose the display currency (USD, EUR, GBP or BRL), BTC or sats, and the number format
+3. Under **Your data**, download every trade as CSV, or type DELETE to remove all your trades, imports and settings (your account stays)
+
+Trades are always stored in the currency they were entered in. Showing them in another currency uses the European Central Bank rate on each trade's date, so profit in reais can differ from profit in dollars.
 
 ### Newsletter
 1. Enter your email on the home page or dashboard
@@ -154,10 +167,18 @@ Only BTC bought, sold or earned in USD is imported for now. Deposits, withdrawal
 
 ### Trades and portfolio (require auth)
 - `GET /api/trades` - All trades, newest first, with running break-even, average cost and realized P/L
-- `POST /api/trades` - Add a trade: `{side: buy|sell|reward, date: YYYY-MM-DD, btc, fiat, fee?, fee_asset?: USD|BTC, notes?}`
+- `POST /api/trades` - Add a trade: `{side: buy|sell|reward, date: YYYY-MM-DD, btc, fiat, fee?, fee_asset?, currency?, notes?}` (currency defaults to the display currency; `fee_asset` is the trade currency or BTC)
 - `PUT /api/trades/<id>` - Replace a trade
 - `DELETE /api/trades/<id>` - Delete a trade
 - `GET /api/portfolio` - Position summary: held, invested, proceeds, fees, break-even, average cost, value, total / realized / unrealized P/L
+
+### Settings and data (require auth)
+- `GET /api/settings` - Current settings and the allowed options
+- `PUT /api/settings` - Change `currency` (USD, EUR, GBP, BRL), `btc_unit` (BTC, sats) and/or `locale`
+- `GET /api/trades/export` - Every trade as CSV, in its original currency
+- `POST /api/account/delete-data` - `{"confirm": "DELETE"}` removes all trades, imports and settings
+
+Trades, portfolio and price history are returned in the display currency; each trade also includes `trade_currency`, `trade_fiat` and `trade_fee` as entered. When a conversion needs an exchange rate that isn't available, these return `503` with an explanation.
 
 ### Imports (require auth)
 - `POST /api/imports/preview` - Upload a CSV (`file` field) and get a preview; nothing is saved
@@ -203,6 +224,14 @@ API routes that require auth return `401` JSON when not logged in.
 - `filename`, `file_hash` - The uploaded file and its SHA-256 (the same file can't be imported twice)
 - `trade_count`, `date_from`, `date_to` - What the import added
 - `imported_at` - When it was imported
+
+### User Settings Table
+- `user_id` - Primary key, foreign key to users
+- `currency`, `btc_unit`, `locale` - Display settings (defaults: USD, BTC, automatic)
+
+### FX Rates Table
+- `currency`, `day` - Primary key (`BRL`/`EUR`/`GBP`, `YYYY-MM-DD`)
+- `rate` - Units of that currency per 1 USD (ECB reference rate), exact decimal as text
 
 ### Candles Table
 - `currency`, `day` - Primary key (`USD`, `YYYY-MM-DD` in UTC)
@@ -272,5 +301,6 @@ For issues and questions, please open an issue on the repository.
 ## Acknowledgments
 
 - Live Bitcoin price from CoinGecko and Coinbase; daily history from Bitstamp and Kraken
+- Exchange rates: European Central Bank reference rates, served by [Frankfurter](https://frankfurter.dev/)
 - Charts by TradingView Lightweight Charts™, © TradingView, Inc. ([tradingview.com](https://www.tradingview.com/))
 - Built with Flask and modern web technologies

@@ -44,6 +44,9 @@ def test_add_and_list_a_buy(logged_in):
         'break_even': '40020',
         'average_cost': '40020',
         'realized_pnl': None,
+        'trade_currency': 'USD',
+        'trade_fiat': '20000',
+        'trade_fee': '10',
     }]
 
 

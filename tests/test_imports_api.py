@@ -47,10 +47,10 @@ def test_preview_saves_nothing(logged_in):
     p = response.get_json()['preview']
     assert p['provider'] == 'kraken'
     assert p['filename'] == 'ledgers.csv'
-    assert (p['trades'], p['new'], p['duplicates']) == (5, 5, 0)
-    assert (p['buys'], p['sells'], p['rewards']) == (3, 1, 1)
-    assert (p['date_from'], p['date_to']) == ('2024-01-05', '2024-05-20')
-    assert p['skipped_count'] == 6
+    assert (p['trades'], p['new'], p['duplicates']) == (6, 6, 0)
+    assert (p['buys'], p['sells'], p['rewards']) == (4, 1, 1)
+    assert (p['date_from'], p['date_to']) == ('2024-01-05', '2024-06-01')
+    assert p['skipped_count'] == 4
     assert p['skipped'][0] == {'line': 2, 'reason': 'Deposit (moving money in or out of Kraken does not change '
                                                     'what you paid for BTC)'}
     assert p['already_imported'] is False
@@ -92,25 +92,26 @@ def test_import_kraken_file(logged_in):
     response = confirm(logged_in, KRAKEN)
     assert response.status_code == 201
     body = response.get_json()
-    assert (body['added'], body['duplicates'], body['skipped']) == (5, 0, 6)
+    assert (body['added'], body['duplicates'], body['skipped']) == (6, 0, 4)
 
     trades = logged_in.get('/api/trades').get_json()['trades']
-    assert len(trades) == 5
+    assert len(trades) == 6
     assert {t['source'] for t in trades} == {'kraken'}
     assert trades[-1]['date'] == '2024-01-05'
-    assert logged_in.get('/api/portfolio').get_json()['portfolio']['held'] == '0.015507'
+    assert trades[0]['trade_currency'] == 'EUR'          # the BTC/EUR trade keeps its currency
+    assert logged_in.get('/api/portfolio').get_json()['portfolio']['held'] == '0.018507'
 
     imports = logged_in.get('/api/imports').get_json()['imports']
     assert len(imports) == 1
     record = imports[0]
-    assert (record['provider'], record['filename'], record['trade_count']) == ('kraken', 'ledgers.csv', 5)
-    assert (record['date_from'], record['date_to']) == ('2024-01-05', '2024-05-20')
+    assert (record['provider'], record['filename'], record['trade_count']) == ('kraken', 'ledgers.csv', 6)
+    assert (record['date_from'], record['date_to']) == ('2024-01-05', '2024-06-01')
 
 
 def test_import_coinbase_file(logged_in):
     response = confirm(logged_in, COINBASE, 'coinbase.csv')
-    assert response.get_json()['added'] == 4
-    assert logged_in.get('/api/portfolio').get_json()['portfolio']['held'] == '0.00801'
+    assert response.get_json()['added'] == 5
+    assert logged_in.get('/api/portfolio').get_json()['portfolio']['held'] == '0.00901'
 
 
 def test_the_same_file_cannot_be_imported_twice(logged_in):
@@ -119,7 +120,7 @@ def test_the_same_file_cannot_be_imported_twice(logged_in):
     response = confirm(logged_in, KRAKEN, 'renamed.csv')
     assert response.status_code == 409
     assert 'already imported' in response.get_json()['error']
-    assert len(logged_in.get('/api/trades').get_json()['trades']) == 5
+    assert len(logged_in.get('/api/trades').get_json()['trades']) == 6
 
 
 def test_overlapping_files_only_add_new_trades(logged_in):
@@ -171,7 +172,7 @@ def test_removing_an_import_a_later_sale_needs_is_refused(logged_in):
     response = logged_in.delete(f'/api/imports/{import_id}')
     assert response.status_code == 400
     assert 'would break your history' in response.get_json()['error']
-    assert len(logged_in.get('/api/trades').get_json()['trades']) == 6
+    assert len(logged_in.get('/api/trades').get_json()['trades']) == 7
 
 
 def test_users_cannot_see_or_remove_each_others_imports(client):
