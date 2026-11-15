@@ -149,7 +149,10 @@ jobs:
             Linux)   tar -czf "release/$name.tar.gz" -C dist CoinFlow ;;
           esac
           cd release
-          for file in *; do shasum -a 256 "$file" > "$file.sha256"; done
+          # Python's hashlib works on every runner (Windows has no shasum); same format as shasum -a 256
+          for file in *; do
+            python -c "import hashlib, sys; f = sys.argv[1]; print(hashlib.sha256(open(f, 'rb').read()).hexdigest() + '  ' + f)" "$file" > "$file.sha256"
+          done
 
       - uses: actions/upload-artifact@v4
         with:
