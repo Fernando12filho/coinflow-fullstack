@@ -31,6 +31,24 @@ A full-stack Flask application for tracking Bitcoin: record buys, sells and rewa
 - [TradingView Lightweight Charts™](https://www.tradingview.com/) 5.2.1, bundled in `app/static/vendor/` (Apache-2.0)
 - Responsive Design
 
+## Desktop app
+
+CoinFlow also runs as an installable app that keeps everything on your computer (same pages
+and login as the website). Download it from the
+[Releases](https://github.com/Fernando12filho/coinflow-fullstack/releases) page:
+
+| Computer | File |
+|---|---|
+| Mac with Apple Silicon (M1 or newer), macOS 11+ | `CoinFlow-<version>-macOS-arm64.dmg` |
+| Mac with Intel, macOS 11+ | `CoinFlow-<version>-macOS-x64.dmg` |
+| Windows 10 / 11, 64-bit | `CoinFlow-<version>-Windows-x64.zip` |
+| Linux, 64-bit (experimental; needs GTK and WebKitGTK, and a recent distribution) | `CoinFlow-<version>-Linux-x64.tar.gz` |
+
+Each file has a `.sha256` checksum next to it. Your data is stored in
+`~/Library/Application Support/CoinFlow` (macOS), `%APPDATA%\CoinFlow` (Windows) or
+`~/.local/share/coinflow` (Linux). The app shows "Update available" when a newer release exists.
+Building and signing releases: see [RELEASING.md](RELEASING.md).
+
 ## Installation
 
 1. **Clone the repository**
@@ -105,12 +123,17 @@ coinflow-fullstack/
 │       ├── auth/            # Login and register (shared layout)
 │       └── dashboard/       # Portfolio, import, settings and newsletter pages
 ├── tests/                   # Pytest suite (unit, API and browser tests)
+├── coinflow_desktop.py      # Desktop app entry point (see app/launcher.py)
+├── coinflow.spec            # PyInstaller build for the desktop app
+├── packaging/               # Desktop icon and macOS entitlements
+├── RELEASING.md             # Building, signing and publishing desktop releases
 ├── PLAN.md                  # Roadmap and progress
 ├── CLAUDE.md                # How we work on this repo
 ├── STYLE_GUIDE.md           # UI style guide
 ├── render.yaml              # Render blueprint (web service + Postgres)
 ├── requirements.txt         # Python dependencies
 ├── requirements-dev.txt     # Test dependencies
+├── requirements-desktop.txt # Desktop app build dependencies
 └── README.md                # This file
 ```
 

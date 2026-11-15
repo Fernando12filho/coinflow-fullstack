@@ -29,14 +29,18 @@ def create_app(test_config=None):
     if is_production and not os.environ.get('SECRET_KEY'):
         raise RuntimeError('SECRET_KEY must be set when FLASK_ENV=production')
 
-    # Ensure the instance folder exists
-    try:
-        os.makedirs(app.instance_path)
-    except OSError:
-        pass
+    # Ensure the instance folder exists. The desktop app keeps its data in the user's
+    # app-data folder instead: inside a packaged app the code folder is read-only.
+    if not app.config.get('DESKTOP'):
+        try:
+            os.makedirs(app.instance_path)
+        except OSError:
+            pass
 
-    # Trust the X-Forwarded-* headers set by the hosting platform's proxy
-    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
+    # Trust the X-Forwarded-* headers set by the hosting platform's proxy. The desktop
+    # app has no proxy: honouring them there would let a web page fake its host name.
+    if not app.config.get('DESKTOP'):
+        app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
 
     # Initialize database
     from . import db
@@ -66,6 +70,9 @@ def create_app(test_config=None):
 
     from . import account
     app.register_blueprint(account.bp)
+
+    from . import updates
+    app.register_blueprint(updates.bp)
 
     @app.errorhandler(413)
     def too_large(error):

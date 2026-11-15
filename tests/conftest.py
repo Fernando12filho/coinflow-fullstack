@@ -1,7 +1,7 @@
 import os
 import pytest
 from app import create_app
-from app import bitcoin, fx, prices
+from app import bitcoin, fx, prices, updates
 from app.db import init_db
 
 
@@ -12,6 +12,7 @@ def app(tmp_path, monkeypatch):
     bitcoin._price_cache.update(price=None, fetched_at=0.0)
     prices._state['last_failure'] = 0.0
     fx.reset_state()
+    updates.reset_cache()
     # Set TEST_DATABASE_URL to run the suite against Postgres instead of SQLite
     app = create_app({
         'TESTING': True,

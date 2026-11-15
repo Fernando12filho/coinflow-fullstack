@@ -175,8 +175,21 @@ function showFlashMessages() {
     }
 }
 
+// Desktop app: show "Update available" when GitHub has a newer release
+async function checkForUpdates() {
+    const link = document.getElementById('update-link');
+    if (!link) return;
+    const result = await apiRequest('/api/updates');
+    const update = result.ok && result.data.success ? result.data.update : null;
+    if (!update) return;
+    link.textContent = `Update available: v${update.version}`;
+    link.href = update.url;
+    link.classList.remove('hidden');
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     showFlashMessages();
+    checkForUpdates();
 
     // Loading popup while login/register forms submit
     document.querySelectorAll('form[data-loading]').forEach(form => {
