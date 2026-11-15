@@ -60,3 +60,20 @@ CREATE TABLE IF NOT EXISTS candles (
   close TEXT NOT NULL,                      -- exact decimal
   PRIMARY KEY (currency, day)
 );
+
+-- Daily exchange rates: units of `currency` per 1 USD (ECB reference rates via Frankfurter)
+CREATE TABLE IF NOT EXISTS fx_rates (
+  currency TEXT NOT NULL,
+  day TEXT NOT NULL,                        -- YYYY-MM-DD
+  rate TEXT NOT NULL,                       -- exact decimal
+  PRIMARY KEY (currency, day)
+);
+
+-- Per-user display settings (how amounts are shown; trades keep their own currency)
+CREATE TABLE IF NOT EXISTS user_settings (
+  user_id INTEGER PRIMARY KEY,
+  currency TEXT NOT NULL DEFAULT 'USD',     -- USD | EUR | GBP | BRL
+  btc_unit TEXT NOT NULL DEFAULT 'BTC',     -- BTC | sats
+  locale TEXT NOT NULL DEFAULT 'auto',      -- auto or a language tag such as pt-BR
+  FOREIGN KEY (user_id) REFERENCES users (id)
+);

@@ -6,22 +6,33 @@ Routes:
     PUT    /api/trades/<id>      replace a trade
     DELETE /api/trades/<id>      delete a trade
     GET    /api/portfolio        position summary valued at the current price
+    GET    /api/trades/export    every trade as CSV, in its original currency
 
 Every change replays the whole ledger first and is refused if it would make the
 history impossible (e.g. a sale of BTC that isn't held at that date).
+
+Trades are stored in their own currency. Responses are in the user's display
+currency (Settings): each trade is converted at the exchange rate on its date, and
+the live price at today's rate. The original amounts are returned alongside.
 """
-from datetime import date, datetime, timedelta
+import csv
+import io
+from dataclasses import replace
+from datetime import date, datetime, timedelta, timezone
 from decimal import ROUND_HALF_EVEN, Decimal, InvalidOperation
 
-from flask import Blueprint, g, jsonify, request
+from flask import Blueprint, Response, g, jsonify, request
 
 from app.auth import login_required
 from app.db import get_db
+from app import fx
 from app.ledger import BTC, REWARD, LedgerError, Trade, run_ledger, valuation
 
 bp = Blueprint('portfolio', __name__, url_prefix='/api')
 
-CURRENCY = 'USD'  # display currency becomes a setting in Phase 7
+CURRENCY = 'USD'  # currency of the live price and of trades from before Phase 7
+FX_ERROR = ("Exchange rates aren't available right now, so amounts can't be shown in {currency}. "
+            'Try again in a few minutes, or switch to USD in Settings.')
 MAX_BTC = Decimal('21000000')
 MAX_FIAT = Decimal('1000000000000')
 MAX_DECIMAL_PLACES = 8
@@ -83,9 +94,17 @@ def parse_notes(raw):
     return notes
 
 
-def parse_trade(data, trade_id=None):
-    """Turn a request body into (Trade, notes). Raises ValueError with a user-facing message."""
+def parse_trade(data, trade_id=None, currency=CURRENCY):
+    """Turn a request body into (Trade, notes). Raises ValueError with a user-facing message.
+
+    `currency` is used unless the body names a supported currency of its own.
+    """
     side = data.get('side')
+    requested = data.get('currency')
+    if requested not in (None, ''):
+        if requested not in fx.SUPPORTED:
+            raise ValueError(f'Currency must be one of: {", ".join(fx.SUPPORTED)}')
+        currency = requested
     btc = parse_amount(data.get('btc'), 'BTC amount')
     if btc > MAX_BTC:
         raise ValueError('BTC amount cannot exceed 21,000,000')
@@ -104,8 +123,8 @@ def parse_trade(data, trade_id=None):
         btc=btc,
         fiat=fiat,
         fee=fee,
-        fee_asset=data.get('fee_asset') or CURRENCY,
-        currency=CURRENCY,
+        fee_asset=data.get('fee_asset') or currency,
+        currency=currency,
         id=trade_id,
     )
     return trade, parse_notes(data.get('notes'))
@@ -150,20 +169,56 @@ def insert_trade(db, user_id, trade, notes, source='manual', import_id=None, tra
 def check_history(trades):
     """Raise LedgerError if these trades don't form a valid history.
 
-    A new trade (id None) goes after existing trades on the same date, matching
-    the order it will have once stored.
+    Only BTC amounts decide whether a history is possible, so currencies are set
+    aside here: the check works even when exchange rates are unavailable. A new
+    trade (id None) goes after existing trades on the same date, matching the
+    order it will have once stored.
     """
     big = float('inf')
-    run_ledger(sorted(trades, key=lambda t: (t.date, t.id if t.id is not None else big)))
+    neutral = [replace(t, currency='XXX', fee_asset=BTC if t.fee_asset == BTC else 'XXX') for t in trades]
+    run_ledger(sorted(neutral, key=lambda t: (t.date, t.id if t.id is not None else big)))
 
 
-def ledger_payload(rows):
-    """(trade dicts newest first, Position) for the given stored rows"""
+def display_currency(user_id):
+    from app.settings import get_settings
+    return get_settings(user_id)['currency']
+
+
+def get_converter(currency, trades):
+    """An fx.Converter when anything needs converting into `currency`, else None"""
+    if currency == CURRENCY and all(t.currency == currency for t in trades):
+        return None
+    db = get_db()
+    fx.sync(db)  # if this fails, stored rates are still used; missing ones raise RateUnavailable
+    return fx.load_converter(db)
+
+
+def convert_trade(trade, currency, converter):
+    """The trade with its fiat amounts in `currency`, at the rate on the trade's date"""
+    if trade.currency == currency:
+        return trade
+    day = trade.date.date()
+    btc_fee = trade.fee_asset == BTC
+    return replace(
+        trade,
+        fiat=converter.convert(trade.fiat, trade.currency, currency, day),
+        fee=trade.fee if btc_fee else converter.convert(trade.fee, trade.currency, currency, day),
+        fee_asset=BTC if btc_fee else currency,
+        currency=currency,
+    )
+
+
+def ledger_payload(rows, currency=CURRENCY, converter=None):
+    """(trade dicts newest first, Position) for the stored rows, in `currency`.
+
+    Raises fx.RateUnavailable if a needed exchange rate is missing.
+    """
     by_id = {row['id']: row for row in rows}
-    ledger_rows, position = run_ledger([row_to_trade(row) for row in rows])
+    originals = {row['id']: row_to_trade(row) for row in rows}
+    ledger_rows, position = run_ledger([convert_trade(t, currency, converter) for t in originals.values()])
     trades = []
     for lr in reversed(ledger_rows):
-        t, row = lr.trade, by_id[lr.trade.id]
+        t, row, original = lr.trade, by_id[lr.trade.id], originals[lr.trade.id]
         trades.append({
             'id': t.id,
             'side': t.side,
@@ -180,8 +235,24 @@ def ledger_payload(rows):
             'break_even': fmt(lr.break_even),
             'average_cost': fmt(lr.average_cost),
             'realized_pnl': fmt(lr.realized_pnl),
+            'trade_currency': original.currency,
+            'trade_fiat': fmt(original.fiat),
+            'trade_fee': fmt(original.fee),
         })
     return trades, position
+
+
+def user_ledger(user_id):
+    """(trades, position, currency, converter) for the user, in their display currency"""
+    rows = load_rows(user_id)
+    currency = display_currency(user_id)
+    converter = get_converter(currency, [row_to_trade(row) for row in rows])
+    trades, position = ledger_payload(rows, currency, converter)
+    return trades, position, currency, converter
+
+
+def fx_unavailable(currency):
+    return jsonify({'success': False, 'error': FX_ERROR.format(currency=currency)}), 503
 
 
 def current_price():
@@ -190,10 +261,10 @@ def current_price():
     return Decimal(str(price)) if price else None
 
 
-def portfolio_payload(position, price):
+def portfolio_payload(position, price, currency=CURRENCY):
     v = valuation(position, price)
     return {
-        'currency': position.currency or CURRENCY,
+        'currency': currency,
         'price': fmt(price),
         'held': fmt(position.held),
         'invested': fmt(position.invested),
@@ -253,7 +324,10 @@ def _find_row(rows, trade_id):
 @bp.route('/trades', methods=['GET'])
 @login_required
 def list_trades():
-    trades, _ = ledger_payload(load_rows(g.user['id']))
+    try:
+        trades, _, _, _ = user_ledger(g.user['id'])
+    except fx.RateUnavailable:
+        return fx_unavailable(display_currency(g.user['id']))
     return jsonify({'success': True, 'trades': trades})
 
 
@@ -273,11 +347,14 @@ def save_trade(data, trade_id=None, source='manual'):
         return 400, {'success': False, 'error': 'Request body must be a JSON object'}
 
     rows = load_rows(g.user['id'])
-    if trade_id is not None and _find_row(rows, trade_id) is None:
+    existing = _find_row(rows, trade_id) if trade_id is not None else None
+    if trade_id is not None and existing is None:
         return 404, {'success': False, 'error': 'Trade not found'}
 
+    # New trades are in the display currency; an edit keeps the trade's own currency
+    currency = existing['currency'] if existing else display_currency(g.user['id'])
     try:
-        trade, notes = parse_trade(data, trade_id)
+        trade, notes = parse_trade(data, trade_id, currency)
         others = [row_to_trade(row) for row in rows if row['id'] != trade_id]
         check_history(others + [trade])
     except (ValueError, LedgerError) as e:
@@ -290,14 +367,17 @@ def save_trade(data, trade_id=None, source='manual'):
     else:
         db.execute(
             'UPDATE trades SET side = ?, trade_date = ?, btc_amount = ?, fiat_amount = ?, fee_amount = ?, '
-            'fee_asset = ?, notes = ? WHERE id = ? AND user_id = ?',
+            'fee_asset = ?, currency = ?, notes = ? WHERE id = ? AND user_id = ?',
             (trade.side, trade.date.isoformat(' '), fmt(trade.btc), fmt(trade.fiat), fmt(trade.fee),
-             trade.fee_asset, notes, trade_id, g.user['id']),
+             trade.fee_asset, trade.currency, notes, trade_id, g.user['id']),
         )
         status = 200
     db.commit()
 
-    trades, _ = ledger_payload(load_rows(g.user['id']))
+    try:
+        trades, _, _, _ = user_ledger(g.user['id'])
+    except fx.RateUnavailable:  # saved; it just can't be shown converted right now
+        return status, {'success': True, 'trade': {'id': trade_id}}
     return status, {'success': True, 'trade': next(t for t in trades if t['id'] == trade_id)}
 
 
@@ -330,8 +410,41 @@ def remove_trade(trade_id):
     return 200, {'success': True}
 
 
+EXPORT_COLUMNS = ['date', 'type', 'btc', 'amount', 'currency', 'fee', 'fee_currency',
+                  'price_per_btc', 'source', 'notes']
+
+
+def _safe_cell(text):
+    """Stop spreadsheets from running a cell as a formula (CSV injection)"""
+    return "'" + text if text[:1] in ('=', '+', '-', '@', '\t', '\r') else text
+
+
+@bp.route('/trades/export', methods=['GET'])
+@login_required
+def export_trades():
+    """Every trade, oldest first, with the amounts and currency it was entered in"""
+    out = io.StringIO()
+    writer = csv.writer(out)
+    writer.writerow(EXPORT_COLUMNS)
+    for row in load_rows(g.user['id']):
+        t = row_to_trade(row)
+        writer.writerow([
+            t.date.isoformat(' '), t.side, fmt(t.btc), fmt(t.fiat), t.currency, fmt(t.fee), t.fee_asset,
+            '' if t.side == REWARD else fmt(t.price), row['source'], _safe_cell(row['notes'] or ''),
+        ])
+    filename = f'coinflow-trades-{date.today().isoformat()}.csv'
+    return Response(out.getvalue(), mimetype='text/csv',
+                    headers={'Content-Disposition': f'attachment; filename={filename}'})
+
+
 @bp.route('/portfolio', methods=['GET'])
 @login_required
 def get_portfolio():
-    _, position = ledger_payload(load_rows(g.user['id']))
-    return jsonify({'success': True, 'portfolio': portfolio_payload(position, current_price())})
+    try:
+        _, position, currency, converter = user_ledger(g.user['id'])
+        price = current_price()
+        if price is not None and currency != CURRENCY:
+            price = converter.convert(price, CURRENCY, currency, datetime.now(timezone.utc).date())
+    except fx.RateUnavailable:
+        return fx_unavailable(display_currency(g.user['id']))
+    return jsonify({'success': True, 'portfolio': portfolio_payload(position, price, currency)})

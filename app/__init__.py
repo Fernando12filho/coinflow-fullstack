@@ -61,6 +61,12 @@ def create_app(test_config=None):
     from . import imports
     app.register_blueprint(imports.bp)
 
+    from . import settings
+    app.register_blueprint(settings.bp)
+
+    from . import account
+    app.register_blueprint(account.bp)
+
     @app.errorhandler(413)
     def too_large(error):
         if request.path.startswith('/api/'):

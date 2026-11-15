@@ -11,7 +11,7 @@ USD. A suffix after a dot marks a balance type (XBT.M = staked BTC) and is ignor
 from collections import OrderedDict
 from decimal import Decimal
 
-from app.importers import ImportedTrade, ParsedFile, SkippedRow, stable_hash
+from app.importers import CURRENCIES, CURRENCIES_TEXT, ImportedTrade, ParsedFile, SkippedRow, stable_hash
 from app.importers.common import to_datetime, to_decimal
 from app.ledger import BTC, BUY, REWARD, SELL, Trade
 
@@ -116,11 +116,13 @@ def _trade_group(refid, group):
     if not others:
         return 'Incomplete trade: the USD side is missing from this file'
     quote = others[0]
-    if len(others) > 1 or quote != 'USD':
-        return f'BTC/{quote} trade: only USD is supported for now'
+    if len(others) > 1:
+        return 'Trade with more than one currency'
+    if quote not in CURRENCIES:
+        return f'BTC/{quote} trade: only {CURRENCIES_TEXT} are supported'
 
     btc, btc_fee = totals[BTC]
-    usd, usd_fee = totals['USD']
+    usd, usd_fee = totals[quote]  # the fiat side, in the trade's own currency
     if btc > 0 > usd:
         side, btc_amount, fiat = BUY, btc, -usd
     elif btc < 0 < usd:
@@ -128,14 +130,14 @@ def _trade_group(refid, group):
     else:
         return 'Trade with an unexpected direction'
 
-    # One fee asset per trade: keep a single fee as-is, value a BTC fee in USD if both exist
+    # One fee asset per trade: keep a single fee as-is, value a BTC fee in fiat if both exist
     if btc_fee and usd_fee:
-        fee, fee_asset = usd_fee + btc_fee * (fiat / btc_amount), 'USD'
+        fee, fee_asset = usd_fee + btc_fee * (fiat / btc_amount), quote
     elif btc_fee:
         fee, fee_asset = btc_fee, BTC
     else:
-        fee, fee_asset = usd_fee, 'USD'
+        fee, fee_asset = usd_fee, quote
 
     trade = Trade(side, min(e['time'] for e in group), btc_amount, fiat, fee=fee, fee_asset=fee_asset,
-                  currency='USD')
+                  currency=quote)
     return ImportedTrade(trade, stable_hash('kraken', refid), '', tuple(e['line'] for e in group))

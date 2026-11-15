@@ -1,6 +1,7 @@
 {% set on_portfolio = request.endpoint in ('dashboard.index', 'dashboard.dashboard') %}
 {% set on_newsletter = request.endpoint == 'dashboard.newsletter' %}
 {% set on_import = request.endpoint == 'dashboard.import_page' %}
+{% set on_settings = request.endpoint == 'dashboard.settings_page' %}
 <header class="app-header">
     <a href="{{ url_for('dashboard.index') }}" class="logo">
         <img src="{{ url_for('static', filename='img/logo.svg') }}" alt="">
@@ -18,6 +19,7 @@
             <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="5" r="2.75" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M2.75 14v-.75A3.25 3.25 0 0 1 6 10h4a3.25 3.25 0 0 1 3.25 3.25V14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
             {{ g.user['username'] }}
         </span>
+        <a href="{{ url_for('dashboard.settings_page') }}" class="pill{{ ' active' if on_settings }}"{% if on_settings %} aria-current="page"{% endif %}>Settings</a>
         <a href="{{ url_for('auth.logout') }}" class="pill logout-button">Log Out</a>
     </div>
 </header>

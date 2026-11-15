@@ -5,32 +5,72 @@ const TRASH_ICON = '<svg width="14" height="14" viewBox="0 0 14 14" aria-hidden=
     '<path d="M2 4h10M5 4V2.5h4V4M3.5 4l.7 8h5.6l.7-8" fill="none" stroke="currentColor" stroke-width="1.3" ' +
     'stroke-linecap="round" stroke-linejoin="round"/></svg>';
 
-// Format currency
-function formatCurrency(value) {
+// ---------- Formatting (follows the user's Settings) ----------
+
+// Settings embedded by base.html for logged-in users: {currency, btc_unit, locale}
+const USER_SETTINGS = (() => {
+    try {
+        const el = document.getElementById('user-settings');
+        return el ? JSON.parse(el.textContent) || {} : {};
+    } catch (error) {
+        return {};
+    }
+})();
+
+// Currency used when none is given; pages update it from API responses
+let displayCurrency = USER_SETTINGS.currency || 'USD';
+
+// undefined lets the browser pick its own language ("Automatic")
+function userLocale() {
+    return USER_SETTINGS.locale && USER_SETTINGS.locale !== 'auto' ? USER_SETTINGS.locale : undefined;
+}
+
+function formatCurrency(value, currency = displayCurrency) {
     if (value === null || value === undefined) {
         return '—';
     }
-    return new Intl.NumberFormat('en-US', {
+    return new Intl.NumberFormat(userLocale(), {
         style: 'currency',
-        currency: 'USD',
+        currency,
         minimumFractionDigits: 2,
         maximumFractionDigits: 2
     }).format(value);
 }
 
-// Format Bitcoin amount
+// The symbol for a currency in the user's number format (e.g. "R$", "US$", "€")
+function currencySymbol(currency = displayCurrency) {
+    const parts = new Intl.NumberFormat(userLocale(), { style: 'currency', currency }).formatToParts(0);
+    const symbol = parts.find(part => part.type === 'currency');
+    return symbol ? symbol.value : currency;
+}
+
+// BTC with 8 decimals, or whole satoshis, depending on Settings
 function formatBTC(value) {
-    return parseFloat(value).toFixed(8);
+    const btc = Number(value);
+    if (USER_SETTINGS.btc_unit === 'sats') {
+        return `${new Intl.NumberFormat(userLocale()).format(Math.round(btc * 1e8))} sats`;
+    }
+    return new Intl.NumberFormat(userLocale(), {
+        minimumFractionDigits: 8,
+        maximumFractionDigits: 8
+    }).format(btc);
 }
 
 // Format money with an explicit sign (+$5.00 / −$5.00) so gains and losses
 // don't rely on colour alone
-function formatSignedCurrency(value) {
+function formatSignedCurrency(value, currency = displayCurrency) {
     if (value === null || value === undefined) {
         return '—';
     }
     const sign = value > 0 ? '+' : value < 0 ? '−' : '';
-    return sign + formatCurrency(Math.abs(value));
+    return sign + formatCurrency(Math.abs(value), currency);
+}
+
+function formatNumber(value, decimals) {
+    return new Intl.NumberFormat(userLocale(), {
+        minimumFractionDigits: decimals,
+        maximumFractionDigits: decimals
+    }).format(value);
 }
 
 // Format a signed percentage, or nothing when unknown
@@ -39,13 +79,13 @@ function formatPercent(value) {
         return '';
     }
     const sign = value > 0 ? '+' : value < 0 ? '−' : '';
-    return `(${sign}${Math.abs(value).toFixed(2)}%)`;
+    return `(${sign}${formatNumber(Math.abs(value), 2)}%)`;
 }
 
-// Format a purchase date. Dates are stored in UTC, so display them in UTC
+// Format a date. Dates are stored in UTC, so display them in UTC
 // to avoid showing the previous day in timezones behind UTC.
 function formatDate(dateString) {
-    return new Date(dateString).toLocaleDateString('en-US', {
+    return new Date(dateString).toLocaleDateString(userLocale(), {
         year: 'numeric',
         month: 'short',
         day: 'numeric',

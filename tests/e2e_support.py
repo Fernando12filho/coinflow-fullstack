@@ -14,7 +14,7 @@ from werkzeug.serving import make_server
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 
-from app import bitcoin, create_app, prices
+from app import bitcoin, create_app, fx, prices
 
 sync_api = pytest.importorskip('playwright.sync_api')
 expect = sync_api.expect
@@ -65,6 +65,15 @@ def fake_closes(start, end):
     return out
 
 
+def fake_rates(start, end):
+    """Fake exchange rates: 1 USD = R$5 = €0.90 = £0.80 every day"""
+    out, day = [], start
+    while day <= end:
+        out += [(day, 'BRL', Decimal('5')), (day, 'EUR', Decimal('0.90')), (day, 'GBP', Decimal('0.80'))]
+        day += timedelta(days=1)
+    return out
+
+
 @pytest.fixture
 def base_url(tmp_path, monkeypatch):
     """Run the app on a free local port with a fresh database"""
@@ -72,7 +81,10 @@ def base_url(tmp_path, monkeypatch):
     monkeypatch.setattr(bitcoin, '_fetch_bitcoin_price', lambda: 50000.0)
     bitcoin._price_cache.update(price=None, fetched_at=0.0)
     prices._state['last_failure'] = 0.0
+    fx.reset_state()
     monkeypatch.setattr(prices, 'fetch_closes', fake_closes)
+    monkeypatch.setattr(fx, 'RATES_START', utc_today() - timedelta(days=1200))
+    monkeypatch.setattr(fx, 'fetch_rates', fake_rates)
     app = create_app({'TESTING': True, 'DATABASE': str(tmp_path / 'e2e.sqlite')})
     server = make_server('127.0.0.1', 0, app, threaded=True)
     threading.Thread(target=server.serve_forever, daemon=True).start()

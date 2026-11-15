@@ -65,8 +65,10 @@ def test_kraken_ledger_trades():
         (REWARD, datetime(2024, 3, 8, 0, 10, 0), D('0.000021'), D('0'), D('0'), BTC),
         # sale: BTC row negative, USD row positive with the fee
         (SELL, datetime(2024, 5, 20, 16, 45, 0), D('0.005'), D('350'), D('0.91'), 'USD'),
+        # BTC bought with euros (Phase 7): kept in EUR, fee in EUR
+        (BUY, datetime(2024, 6, 1, 10, 0, 0), D('0.003'), D('200'), D('0.5'), 'EUR'),
     ]
-    assert all(t.trade.currency == 'USD' for t in parsed.trades)
+    assert [t.trade.currency for t in parsed.trades] == ['USD'] * 5 + ['EUR']
 
 
 def test_kraken_skipped_rows_are_explained():
@@ -77,16 +79,16 @@ def test_kraken_skipped_rows_are_explained():
         10: 'Earn allocation (moving BTC between your own Kraken balances)',
         11: 'Earn allocation (moving BTC between your own Kraken balances)',
         12: 'Withdrawal (moving money in or out of Kraken does not change what you paid for BTC)',
-        15: 'BTC/EUR trade: only USD is supported for now',
-        16: 'BTC/EUR trade: only USD is supported for now',
     }
 
 
 def test_kraken_trades_form_a_valid_history():
     # The withdrawal is skipped, so the 0.005 BTC sale is covered by the earlier buys
-    _, position = run_ledger([t.trade for t in parse_file(load('kraken/ledgers.csv')).trades])
-    # 0.012 + (0.007 - 0.000014) + 0.0015 + 0.000021 - 0.005
-    assert position.held == D('0.015507')
+    # 0.012 + (0.007 - 0.000014) + 0.0015 + 0.000021 - 0.005 + 0.003
+    trades = parse_file(load('kraken/ledgers.csv')).trades
+    from app.portfolio import check_history
+    check_history([t.trade for t in trades])  # mixed currencies are fine for the BTC balance check
+    assert sum(t.trade.btc - t.trade.fee_btc if t.trade.side != SELL else -t.trade.btc for t in trades) == D('0.018507')
 
 
 def test_kraken_legacy_format():
@@ -146,6 +148,9 @@ def test_kraken_edge_cases():
         # line 11-12: both sides positive
         '"L9","T5","2024-01-06 10:00:00","trade","","currency","USD",100.0000,0,0',
         '"L10","T5","2024-01-06 10:00:00","trade","","currency","BTC",0.0010000000,0,0',
+        # line 13-14: BTC/JPY isn't supported
+        '"L11","T6","2024-01-07 10:00:00","trade","","currency","JPY",-100000,0,0',
+        '"L12","T6","2024-01-07 10:00:00","trade","","currency","BTC",0.0100000000,0,0',
     ))
     assert summary(parsed) == [(BUY, datetime(2024, 1, 1, 10), D('0.01'), D('500'), D('7'), 'USD')]
     assert {s.line: s.reason for s in parsed.skipped} == {
@@ -157,6 +162,8 @@ def test_kraken_edge_cases():
         10: 'EUR/USD trade without BTC',
         11: 'Trade with an unexpected direction',
         12: 'Trade with an unexpected direction',
+        13: 'BTC/JPY trade: only USD, EUR, GBP and BRL are supported',
+        14: 'BTC/JPY trade: only USD, EUR, GBP and BRL are supported',
     }
 
 
@@ -182,7 +189,10 @@ def test_coinbase_trades():
         (REWARD, datetime(2024, 2, 20, 12, 0), D('0.00001'), D('0'), D('0'), 'USD'),
         # A sale's quantity is negative in this layout; Subtotal is before the fee
         (SELL, datetime(2024, 4, 10, 9, 15), D('0.004'), D('280.00'), D('4.15'), 'USD'),
+        # Priced in euros (Phase 7): kept in EUR
+        (BUY, datetime(2024, 5, 4, 13, 0), D('0.001'), D('56.00'), D('1.49'), 'EUR'),
     ]
+    assert parsed.trades[-1].trade.currency == 'EUR'
     assert parsed.trades[0].notes == 'Bought 0.002 BTC for $86.99 USD'
 
 
@@ -193,13 +203,13 @@ def test_coinbase_skipped_rows_are_explained():
         9: 'Convert (crypto-to-crypto conversions are not supported yet)',
         10: 'Receive (moving BTC in or out of Coinbase does not change what you paid for it)',
         11: 'ETH: only BTC is tracked',
-        12: 'Priced in EUR: only USD is supported for now',
     }
 
 
 def test_coinbase_trades_form_a_valid_history():
-    _, position = run_ledger([t.trade for t in parse_file(load('coinbase/transactions.csv')).trades])
-    assert position.held == D('0.008010')  # 0.002 + 0.01 + 0.00001 - 0.004
+    _, position = run_ledger([t.trade for t in parse_file(load('coinbase/transactions.csv')).trades
+                              if t.trade.currency == 'USD'])
+    assert position.held == D('0.008010')  # 0.002 + 0.01 + 0.00001 - 0.004 (USD trades only)
 
 
 def test_coinbase_legacy_layout():
@@ -261,3 +271,14 @@ def test_non_finite_amount_is_reported():
 def test_latin1_file_is_read():
     parsed = parse_file(coinbase('2024-01-03T10:00:00Z,Buy,BTC,0.001,USD,40000,40,41,1,café').decode().encode('latin-1'))
     assert parsed.trades[0].notes == 'café'
+
+
+def test_coinbase_unsupported_currency_is_skipped():
+    parsed = parse_file(coinbase('2024-01-03T10:00:00Z,Buy,BTC,0.001,JPY,6000000,6000,6100,100,'))
+    assert parsed.skipped[0].reason == 'Priced in JPY: only USD, EUR, GBP and BRL are supported'
+    assert parsed.trades == []
+
+
+def test_coinbase_trade_in_reais():
+    parsed = parse_file(coinbase('2024-01-03T10:00:00Z,Buy,BTC,0.001,BRL,250000,250,255,5,'))
+    assert summary(parsed) == [(BUY, datetime(2024, 1, 3, 10, 0), D('0.001'), D('250'), D('5'), 'BRL')]

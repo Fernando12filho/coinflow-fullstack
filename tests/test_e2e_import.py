@@ -29,30 +29,30 @@ def test_preview_then_import(page, base_url):
     choose_file(page, KRAKEN)
     expect(page.locator('#preview')).to_be_visible()
     expect(page.locator('#preview-title')).to_have_text('ledgers.csv · Kraken')
-    expect(page.locator('#preview-counts')).to_have_text('5 trades found: 5 new, 0 already in CoinFlow')
-    expect(page.locator('#preview-sides')).to_have_text('3 buys · 1 sale · 1 reward')
-    expect(page.locator('#preview-dates')).to_have_text('Jan 5, 2024 – May 20, 2024')
+    expect(page.locator('#preview-counts')).to_have_text('6 trades found: 6 new, 0 already in CoinFlow')
+    expect(page.locator('#preview-sides')).to_have_text('4 buys · 1 sale · 1 reward')
+    expect(page.locator('#preview-dates')).to_have_text('Jan 5, 2024 – Jun 1, 2024')
     expect(page.locator('#preview-problem')).to_be_hidden()
 
     # Skipped rows are listed with their line number and reason
-    expect(page.locator('#preview-skipped summary')).to_have_text('6 rows skipped')
+    expect(page.locator('#preview-skipped summary')).to_have_text('4 rows skipped')
     page.click('#preview-skipped summary')
     expect(page.locator('#preview-skipped li').first).to_have_text(
         'Line 2: Deposit (moving money in or out of Kraken does not change what you paid for BTC)')
 
-    expect(page.locator('#import-confirm')).to_have_text('Import 5 trades')
+    expect(page.locator('#import-confirm')).to_have_text('Import 6 trades')
     page.click('#import-confirm')
     expect(page.locator('#preview')).to_be_hidden()
     expect(page.locator('#imports-body tr')).to_have_count(1)
     row = page.locator('#imports-body tr').first
     expect(row).to_contain_text('ledgers.csv')
     expect(row).to_contain_text('Kraken')
-    expect(row.locator('.cell-trades')).to_have_text('5')
+    expect(row.locator('.cell-trades')).to_have_text('6')
 
     # The trades are now in the ledger
     page.goto(f'{base_url}/')
     page.click('#tab-transactions-button')
-    expect(page.locator('#transactions-body tr')).to_have_count(5)
+    expect(page.locator('#transactions-body tr')).to_have_count(6)
 
 
 def test_problem_blocks_the_import(page, base_url, tmp_path):

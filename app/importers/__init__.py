@@ -5,7 +5,8 @@ Pure Python, no Flask. Supported formats:
 - Kraken ledger export (current and older column layouts)
 - Coinbase transaction history (current and older column layouts)
 
-Only BTC bought, sold or earned against USD becomes a trade. Everything else
+Only BTC bought, sold or earned against a supported currency (USD, EUR, GBP,
+BRL) becomes a trade, kept in that currency. Everything else
 (deposits, withdrawals, transfers between your own balances, other coins, other
 currencies) is reported as a skipped row with the reason, so nothing disappears
 silently. Moving your own BTC around doesn't change what you paid for it, so
@@ -19,6 +20,8 @@ from dataclasses import dataclass, field
 from app.ledger import Trade
 
 MAX_HEADER_SCAN_LINES = 20  # Coinbase puts a few lines of text above the header
+CURRENCIES = ('USD', 'EUR', 'GBP', 'BRL')  # same as app.fx.SUPPORTED
+CURRENCIES_TEXT = 'USD, EUR, GBP and BRL'
 
 
 class ImportFormatError(ValueError):
